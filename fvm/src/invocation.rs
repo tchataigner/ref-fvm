@@ -23,7 +23,7 @@ pub struct InvocationContainer<'a, K> {
     // TODO pub fields => constructor.
     pub kernel: K,
     pub machine_context: &'a MachineContext,
-    pub gas_tracker: &'a GasTracker,
+    //pub gas_tracker: &'a GasTracker,
     /// The machine to which this invocation container is bound.
     /// TODO likely don't need this reference since the syscall handlers
     /// will have access to the Kernel through store data.

@@ -59,11 +59,11 @@ pub struct Machine<'db, B, E, K> {
     /// The kernel template
     /// TODO likely will need to be cloned and "connected" to the context with every invocation container
     kernel: K,
-    /// The currently active call stack.
-    /// TODO I don't think we need to store this in the state; it can probably
-    /// be a stack variable in execute_message.
-    /// @steb says we _can't_ store this state.
-    call_stack: CallStack<'db, B>,
+    // The currently active call stack.
+    // TODO I don't think we need to store this in the state; it can probably
+    // be a stack variable in execute_message.
+    // @steb says we _can't_ store this state.
+    // call_stack: CallStack<'db, B>,
 }
 
 impl<'db, B, E, K> Machine<'db, B, E, K>
@@ -113,7 +113,6 @@ where
             kernel,
             state_tree,
             commit_buffer: Default::default(), // @stebalien TBD
-            call_stack: todo!(),               // TODO implement constructor.
         })
     }
 
@@ -126,13 +125,13 @@ where
     }
 
     /// This is the entrypoint to execute a message.
-    pub fn execute_message(mut self, msg: &Message, kind: ApplyKind) -> anyhow::Result<ApplyRet> {
+    pub fn execute_message(&mut self, msg: &Message, kind: ApplyKind) -> anyhow::Result<ApplyRet> {
         // TODO sanity check on message, copied from Forest, needs adaptation.
         msg.check()?;
 
         // TODO I don't like having price lists _inside_ the FVM, but passing
         //  these across the boundary is also a no-go.
-        let pl = self.context.price_list;
+        let pl = &self.context.price_list;
         let ser_msg = msg.marshal_cbor()?;
         let msg_gas_cost = pl.on_chain_message(ser_msg.len());
         let cost_total = msg_gas_cost.total();
@@ -403,7 +402,7 @@ impl ApplyRet {
     }
 }
 
-pub struct CallStack<'a, B> {
+pub struct CallStack<'a, 'db, B> {
     /// The buffer of blocks that that a given message execution has written.
     /// Reachable blocks from the updated state roots of actors touched by the
     /// call stack will probably need to be transferred to the Machine's
@@ -412,24 +411,24 @@ pub struct CallStack<'a, B> {
     // write_buffer: (),
     /// A state tree stacked on top of the Machine state tree, tracking state
     /// changes performed by actors throughout a call stack.
-    state_tree: &'a StateTree<'a, B>,
+    state_tree: &'a mut StateTree<'db, B>,
     // TODO figure out what else needs to be here.
     /// The original message that spawned the call stack.
     orig_msg: &'a Message,
     /// The gas tracker for the transaction.
-    gas_tracker: &'a GasTracker,
+    gas_tracker: &'a mut GasTracker,
     machine_context: &'a MachineContext,
 }
 
-impl<'a, B> CallStack<'_, B>
+impl<'a, 'db, B> CallStack<'_, '_, B>
 where
     B: Blockstore,
 {
     fn perform(
-        msg: &Message,
-        machine_context: &MachineContext,
-        state_tree: &mut StateTree<'a, B>,
-        gas_tracker: &mut GasTracker,
+        msg: &'a Message,
+        machine_context: &'a MachineContext,
+        state_tree: &'a mut StateTree<'db, B>,
+        gas_tracker: &'a mut GasTracker,
     ) -> anyhow::Result<Receipt> {
         let mut call_stack = CallStack {
             state_tree,
@@ -495,7 +494,7 @@ where
             .register_new_address(addr)
             .map_err(|e| e.downcast_fatal("failed to register new address"))?;
 
-        let act = *crate::account_actor::ZERO_STATE;
+        let act = crate::account_actor::ZERO_STATE.clone();
 
         self.state_tree
             .set_actor(&addr_id, act)
@@ -521,9 +520,8 @@ where
             gas_premium: Default::default(),
         };
 
-        /// TODO
-        self.call_next(&msg)
-            .map_err(|e| e.wrap("failed to invoke account constructor"))?;
+        /// TODO handle error properly
+        self.call_next(&msg).map_err(|e| actor_error!(fatal(e)))?;
 
         let act = self
             .state_tree

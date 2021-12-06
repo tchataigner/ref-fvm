@@ -3,7 +3,7 @@
 //! concrete actor must eventually go. (TODO)
 
 use crate::state_tree::ActorState;
-use cid::{multihash::Code, Cid};
+use cid::{multihash::Code, multihash::MultihashDigest, Cid};
 use fvm_shared::address::Address;
 
 use fvm_shared::bigint::Zero;
@@ -20,7 +20,7 @@ lazy_static!(
     /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
     pub static ref EMPTY_ARR_CID: Cid = {
         let empty = to_vec::<[(); 0]>(&[]).unwrap();
-        Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(empty))
+        Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(&empty))
     };
 
     pub static ref ZERO_STATE: ActorState = ActorState {
