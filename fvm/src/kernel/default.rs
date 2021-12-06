@@ -1,10 +1,16 @@
-use std::convert::TryFrom;
+use std::borrow::Borrow;
+use std::convert::{TryFrom, TryInto};
+use std::error::Error;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cid::Cid;
 
 use blockstore::Blockstore;
 use fvm_shared::ActorID;
+
+use crate::externs::Externs;
+use crate::machine::{CallStack, Machine};
+use crate::message::Message;
 
 use super::blocks::{Block, BlockRegistry};
 use super::*;
@@ -12,58 +18,101 @@ use super::*;
 /// Tracks data accessed and modified during the execution of a message.
 ///
 /// TODO writes probably ought to be scoped by invocation container.
-pub struct DefaultKernel<B> {
+pub struct DefaultKernel<'a, 'db, B, E> {
+    /// The machine this kernel is bound to.
+    machine: &'a Machine<'db, B, E, Self>,
+    /// The call stack in which the invocation container to which this kernel
+    /// is bound is participating in.
+    call_stack: &'a CallStack<'a, 'db, B>,
+    /// The message being processed by the invocation container to which this
+    /// kernel is bound.
+    ///
+    /// Owned copy.
+    invocation_msg: Message,
     /// Tracks block data and organizes it through index handles so it can be
     /// referred to.
     ///
     /// This does not yet reason about reachability.
     blocks: BlockRegistry,
-    store: B,
-    /// Current state root of an actor.
-    /// TODO This probably doesn't belong here.
-    root: Cid,
+    /// Blockstore cloned from the machine.
+    blockstore: &'db B,
 }
 
 // Even though all children traits are implemented, Rust needs to know that the
 // supertrait is implemented too.
-impl<B> Kernel for DefaultKernel<B> where B: Blockstore {}
-
-impl<B> DefaultKernel<B>
+impl<B, E> Kernel for DefaultKernel<'_, '_, B, E>
 where
     B: Blockstore,
+    E: Externs,
 {
-    pub fn new(bs: B, root: Cid) -> Self {
-        Self {
-            root,
+}
+
+impl<'a, 'db, B, E> DefaultKernel<'a, 'db, B, E>
+where
+    B: Blockstore,
+    E: Externs,
+    'db: 'a,
+{
+    pub fn create(
+        machine: &'a Machine<'db, B, E, Self>,
+        call_stack: &'a CallStack<'a, 'db, B>,
+        mut invocation_msg: Message,
+    ) -> Result<Self, Box<dyn Error>> {
+        invocation_msg.from = call_stack
+            .state_tree()
+            .lookup_id(&invocation_msg.from)?
+            .ok_or("failed to lookup from id address")?;
+
+        invocation_msg.to = call_stack
+            .state_tree()
+            .lookup_id(&invocation_msg.to)?
+            .ok_or("failed to lookup to id address")?;
+
+        Ok(DefaultKernel {
+            invocation_msg,
+            call_stack,
+            machine,
             blocks: BlockRegistry::new(),
-            store: bs,
-        }
+            blockstore: machine.blockstore(),
+        })
     }
 }
 
-impl<B> DefaultKernel<B> where B: Blockstore {}
-
-impl<B> ActorOps for DefaultKernel<B>
+impl<B, E> ActorOps for DefaultKernel<'_, '_, B, E>
 where
     B: Blockstore,
+    E: Externs,
 {
     fn root(&self) -> &Cid {
-        &self.root
+        let addr = &self.invocation_msg.to;
+        let state = self
+            .call_stack
+            .state_tree()
+            .get_actor(addr)
+            .unwrap()
+            .expect("expected invoked actor to exist");
+        &state.state
     }
 
-    fn set_root(&mut self, new: Cid) -> Result<()> {
-        self.root = new;
-        Ok(())
+    fn set_root(&mut self, new: Cid) -> anyhow::Result<()> {
+        let state_tree = self.call_stack.state_tree_mut();
+        state_tree
+            .mutate_actor(&self.invocation_msg.to, |actor_state| {
+                actor_state.state = new;
+                Ok(())
+            })
+            .map_err(|e| anyhow!(e.to_string()))
     }
 }
 
-impl<B> BlockOps for DefaultKernel<B>
+impl<B, E> BlockOps for DefaultKernel<'_, '_, B, E>
 where
     B: Blockstore,
+    E: Externs,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<BlockId, BlockError> {
         let data = self
-            .store
+            .blockstore
             .get(cid)
             .map_err(|e| BlockError::Internal(e.into()))?
             .ok_or_else(|| BlockError::MissingState(Box::new(*cid)))?;
@@ -97,7 +146,7 @@ where
         let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
         // cache, then flush it later.
-        self.store
+        self.blockstore
             .put(&k, block.data())
             .map_err(|e| BlockError::Internal(Box::new(e)))?;
         Ok(k)
@@ -122,10 +171,13 @@ where
     }
 }
 
-impl<B> InvocationOps for DefaultKernel<B> {
+impl<B, E> InvocationOps for DefaultKernel<'_, '_, B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
     fn method_number(&self) -> MethodId {
-        // TODO
-        0
+        self.invocation_msg.method_num
     }
 
     fn method_params(&self) -> BlockId {
@@ -134,16 +186,22 @@ impl<B> InvocationOps for DefaultKernel<B> {
     }
 
     fn caller(&self) -> ActorID {
-        // TODO
-        1
+        self.invocation_msg
+            .from
+            .id()
+            .expect("invocation from address was not an ID address")
     }
 
     fn receiver(&self) -> ActorID {
-        // TODO
-        0
+        self.invocation_msg
+            .to
+            .id()
+            .expect("invocation to address was not an ID address")
     }
 
     fn value_received(&self) -> u128 {
+        // TODO @steb
+        // self.invocation_msg.value.into()
         0
     }
 }

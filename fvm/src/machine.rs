@@ -37,7 +37,6 @@ pub struct Machine<'db, B, E, K> {
     /// is dropped when the Machine is dropped.
     engine: Engine,
     /// The linker used to store wasm functions.
-    /// TODO: This probably needs to be per-invocation?
     linker: Linker<K>,
     /// Blockstore to use for this machine instance.
     blockstore: &'db B,
@@ -51,14 +50,11 @@ pub struct Machine<'db, B, E, K> {
     /// execution concludes.
     /// TODO @steb needs to figure out how all of this is going to work.
     commit_buffer: (),
-    /// Placeholder to maybe keep a reference to FullVerifier (Forest) here.
-    /// The FullVerifier is the gateway to filecoin-proofs-api.
-    /// TODO these likely go in the kernel, as they are syscalls that can be
-    /// resolved inside the FVM without traversing Boundary A.
+    // Placeholder to maybe keep a reference to FullVerifier (Forest) here.
+    // The FullVerifier is the gateway to filecoin-proofs-api.
+    // TODO these likely go in the kernel, as they are syscalls that can be
+    // resolved inside the FVM without traversing Boundary A.
     // verifier: PhantomData<V>,
-    /// The kernel template
-    /// TODO likely will need to be cloned and "connected" to the context with every invocation container
-    kernel: K,
     // The currently active call stack.
     // TODO I don't think we need to store this in the state; it can probably
     // be a stack variable in execute_message.
@@ -79,24 +75,19 @@ where
         state_root: &Cid,
         blockstore: &'db B,
         externs: E,
-        kernel: K,
     ) -> anyhow::Result<Machine<'db, B, E, K>> {
-        let engine = Engine::new(&config.engine)?;
-        let mut linker = Linker::new(&engine);
-        bind_syscalls(&mut linker); // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
-
-        let context = MachineContext {
+        let context = MachineContext::new(
             epoch,
-            base_fee: base_fee.clone(),
-            state_root: state_root.clone(),
-            price_list: price_list_by_epoch(epoch),
-        };
+            base_fee.clone(),
+            state_root.clone(),
+            price_list_by_epoch(epoch),
+        );
 
         // Initialize the WASM engine.
-        // TODO initialize the engine
-        // TODO instantiate state tree with root and blockstore.
-        // TODO load the gas_list for this epoch, and give it to the kernel.
-        // TODO instantiate the Kernel template.
+        let engine = Engine::new(&config.engine)?;
+        let mut linker = Linker::new(&engine);
+        // TODO turn into a trait so we can do Linker::new(&engine).with_bound_syscalls();
+        bind_syscalls(&mut linker)?;
 
         // TODO: fix the error handling to use anyhow up and down the stack, or at least not use
         // non-send errors in the state-tree.
@@ -110,7 +101,6 @@ where
             engine,
             externs,
             blockstore,
-            kernel,
             state_tree,
             commit_buffer: Default::default(), // @stebalien TBD
         })
@@ -120,8 +110,16 @@ where
         &self.engine
     }
 
+    pub fn linker(&self) -> &Linker<K> {
+        &self.linker
+    }
+
     pub fn config(&self) -> Config {
         self.config.clone()
+    }
+
+    pub fn blockstore(&self) -> &'db B {
+        self.blockstore.clone()
     }
 
     /// This is the entrypoint to execute a message.
@@ -420,7 +418,7 @@ pub struct CallStack<'a, 'db, B> {
     machine_context: &'a MachineContext,
 }
 
-impl<'a, 'db, B> CallStack<'_, '_, B>
+impl<'a, 'db, B> CallStack<'a, 'db, B>
 where
     B: Blockstore,
 {
@@ -437,6 +435,15 @@ where
             orig_msg: msg,
         };
         call_stack.call_next(msg)
+    }
+
+    pub fn state_tree(&self) -> &StateTree<'db, B> {
+        self.state_tree
+    }
+
+    pub fn state_tree_mut(&self) -> &mut StateTree<'db, B> {
+        // This is safe only because the VM is single-threaded at this stage.
+        self.state_tree
     }
 
     pub fn call_next(&mut self, msg: &Message) -> anyhow::Result<Receipt> {

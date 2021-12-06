@@ -1,6 +1,8 @@
 use anyhow::Result;
 use cid::Cid;
 
+use crate::invocation::InvocationContainer;
+use crate::machine::{CallStack, Machine};
 pub use blocks::{BlockError, BlockId, BlockStat};
 use fvm_shared::ActorID;
 

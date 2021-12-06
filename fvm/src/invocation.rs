@@ -4,40 +4,24 @@ use anyhow::Result;
 #[allow(unused_imports)]
 use wasmtime::{Config as WasmtimeConfig, Engine, Instance, Linker, Module, Store};
 
-use crate::gas::GasTracker;
-use crate::machine::MachineContext;
-use crate::message::Message;
-use crate::state_tree::ActorState;
-use crate::Kernel;
 use blockstore::Blockstore;
 use fvm_shared::actor_error;
 use fvm_shared::address::Address;
 use fvm_shared::error::ActorError;
+
+use crate::externs::Externs;
+use crate::gas::GasTracker;
+use crate::machine::{CallStack, Machine, MachineContext};
+use crate::message::Message;
+use crate::state_tree::ActorState;
+use crate::{DefaultKernel, Kernel};
 
 /// An entry in the return stack.
 type ReturnEntry = (bool, Vec<u8>);
 
 /// The InvocationContainer is the store data associated with a
 /// wasmtime instance.
-pub struct InvocationContainer<'a, K> {
-    // TODO pub fields => constructor.
-    pub kernel: K,
-    pub machine_context: &'a MachineContext,
-    //pub gas_tracker: &'a GasTracker,
-    /// The machine to which this invocation container is bound.
-    /// TODO likely don't need this reference since the syscall handlers
-    /// will have access to the Kernel through store data.
-    // machine: &'a Machine<'a, B, E>,
-    /// The actor's bytecode.
-    pub actor_bytecode: &'a [u8],
-    /// The wasmtime instance this container is running.
-    /// TODO might not need this handle in the state.
-    instance: &'a Instance,
-    /// Stack of return data owned by the invocation container, and made
-    /// available to the actor.
-    /// TODO If this is necessary; could just return the CID of the result block.
-    return_stack: VecDeque<ReturnEntry>,
-}
+pub struct InvocationContainer {}
 
 /// TODO it's possible that the invocation container doesn't need to exist
 /// as an object; instead the invocation container could be the "store data"
@@ -48,27 +32,32 @@ pub struct InvocationContainer<'a, K> {
 /// will lock us right into that runtime. We probably _should_ have an
 /// InvocationContainer to abstract underlying WASM runtime implementation
 /// details.
-impl<'a, K> InvocationContainer<'a, K>
-where
-    K: Kernel,
-{
-    pub fn new<B>(config: &super::Config, bytecode: &[u8]) -> Result<Self>
+impl InvocationContainer {
+    pub fn run<'a, 'db, B, E, K>(
+        machine: &'a Machine<B, E, K>,
+        call_stack: &'a CallStack<'a, 'db, B>,
+        msg: &'a Message,
+        bytecode: &[u8],
+    ) -> anyhow::Result<()>
     where
         B: Blockstore,
+        E: Externs,
+        K: Kernel,
+        'db: 'a,
     {
-        // /// TODO implement
-        // use crate::DefaultKernel;
-        // let module = Module::new(&engine, wasm_bytecode)?;
+        let engine = machine.engine();
+        let module = Module::new(engine, bytecode)?;
+        let kernel = DefaultKernel::create(machine, call_stack, msg.clone())?;
+        let mut store = Store::new(engine, kernel);
+        let instance = machine.linker().instantiate(store, &module)?;
+
+        let invoke = instance.get_typed_func(&mut store, "invoke")?;
+        let (result,): (u32,) = invoke.call(&mut store, (method_params,))?;
+        println!("{:?}", result);
+        Ok(())
+
         //
-        // // let config = fvm::Config { max_pages: 10 };
-        // // let bs = MemoryBlockstore::default();
-        // // let root_block = b"test root block";
-        // // let root_cid = Cid::new_v1(0x55, MhCode::Sha2_256.digest(root_block));
-        // bs.put(&root_cid, root_block)?;
-        //
-        // let runtime = DefaultKernel::new(blockstore, root_cid);
-        //
-        // let mut store = Store::new(&engine, runtime);
+
         todo!()
     }
 
