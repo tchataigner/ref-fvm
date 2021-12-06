@@ -8,6 +8,7 @@ pub mod message;
 pub mod receipt;
 pub mod syscalls;
 
+mod account_actor;
 mod adt;
 mod gas;
 mod init_actor;

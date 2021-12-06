@@ -4,33 +4,39 @@ use anyhow::Result;
 #[allow(unused_imports)]
 use wasmtime::{Config as WasmtimeConfig, Engine, Instance, Linker, Module, Store};
 
+use crate::gas::GasTracker;
+use crate::machine::MachineContext;
+use crate::message::Message;
+use crate::state_tree::ActorState;
+use crate::Kernel;
 use blockstore::Blockstore;
+use fvm_shared::actor_error;
+use fvm_shared::address::Address;
+use fvm_shared::error::ActorError;
 
 /// An entry in the return stack.
 type ReturnEntry = (bool, Vec<u8>);
 
-/// TODO
-/// TODO This module needs to be heavily revisited.
-/// TODO
-
-pub struct InvocationContainer<'a> {
+/// The InvocationContainer is the store data associated with a
+/// wasmtime instance.
+pub struct InvocationContainer<'a, K> {
+    // TODO pub fields => constructor.
+    pub kernel: K,
+    pub machine_context: &'a MachineContext,
+    pub gas_tracker: &'a GasTracker,
     /// The machine to which this invocation container is bound.
     /// TODO likely don't need this reference since the syscall handlers
     /// will have access to the Kernel through store data.
     // machine: &'a Machine<'a, B, E>,
     /// The actor's bytecode.
-    actor_bytecode: &'a [u8],
+    pub actor_bytecode: &'a [u8],
     /// The wasmtime instance this container is running.
     /// TODO might not need this handle in the state.
     instance: &'a Instance,
-
     /// Stack of return data owned by the invocation container, and made
     /// available to the actor.
     /// TODO If this is necessary; could just return the CID of the result block.
     return_stack: VecDeque<ReturnEntry>,
-    ///// TODO gas charger should not be wired here. At this point in time, we are
-    ///// charging gas explicitly on syscalls.
-    // gas_charger: PhantomData<()>,
 }
 
 /// TODO it's possible that the invocation container doesn't need to exist
@@ -42,8 +48,11 @@ pub struct InvocationContainer<'a> {
 /// will lock us right into that runtime. We probably _should_ have an
 /// InvocationContainer to abstract underlying WASM runtime implementation
 /// details.
-impl<'a> InvocationContainer<'a> {
-    fn new<B>(config: &super::Config, wasm_bytecode: &[u8]) -> Result<Self>
+impl<'a, K> InvocationContainer<'a, K>
+where
+    K: Kernel,
+{
+    pub fn new<B>(config: &super::Config, bytecode: &[u8]) -> Result<Self>
     where
         B: Blockstore,
     {
@@ -62,6 +71,33 @@ impl<'a> InvocationContainer<'a> {
         // let mut store = Store::new(&engine, runtime);
         todo!()
     }
+
+    // TODO
+    // pub fn handle(msg: Message) {
+    //     // Get the callee; this will resolve the address.
+    //     // TODO it's not clear to me reading Forest's VM what should happen here
+    //     //  There, this happens in the internal_send.
+    //     let callee = match self.state_tree.get_actor(&msg.to) {
+    //         Ok(addr) => ,
+    //         Err(e) => Ok(ApplyRet::prevalidation_fail()),
+    //     };
+    //     let to_actor = match self
+    //         .state
+    //         .get_actor(msg.to())
+    //         .map_err(|e| e.downcast_fatal("failed to get actor"))?
+    //     {
+    //         Some(act) => act,
+    //         None => {
+    //             // Try to create actor if not exist
+    //             let (to_actor, id_addr) = self.try_create_account_actor(msg.to())?;
+    //             if self.network_version() > NetworkVersion::V3 {
+    //                 // Update the receiver to the created ID address
+    //                 self.vm_msg.receiver = id_addr;
+    //             }
+    //             to_actor
+    //         }
+    //     };
+    // }
 
     /// Describes the top element in the return stack.
     /// -1 means error, 0 means non-existent, otherwise the length is returned.
