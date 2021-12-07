@@ -11,13 +11,13 @@ use fvm_shared::address::Address;
 use fvm_shared::encoding::DAG_CBOR;
 use fvm_shared::error::ActorError;
 
-use crate::{DefaultKernel, Kernel};
 use crate::externs::Externs;
 use crate::gas::GasTracker;
 use crate::kernel::BlockOps;
 use crate::machine::{CallStack, Machine, MachineContext};
 use crate::message::Message;
 use crate::state_tree::ActorState;
+use crate::{DefaultKernel, Kernel};
 
 /// The InvocationContainer is the store data associated with a
 /// wasmtime instance.
@@ -34,7 +34,7 @@ pub struct InvocationContainer {}
 /// details.
 impl InvocationContainer {
     pub fn run<'a, 'db, B, E>(
-        machine: &'a Machine<'db, B, E, DefaultKernel<'_, 'db, B, E>>,
+        machine: &'a Machine<'a, 'db, B, E, DefaultKernel<'_, 'db, B, E>>,
         call_stack: &'a CallStack<'a, 'db, B>,
         msg: &'a Message,
         bytecode: &[u8],

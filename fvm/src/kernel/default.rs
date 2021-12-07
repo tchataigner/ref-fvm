@@ -21,7 +21,7 @@ use super::*;
 /// TODO writes probably ought to be scoped by invocation container.
 pub struct DefaultKernel<'a, 'db, B, E> {
     /// The machine this kernel is bound to.
-    machine: &'a Machine<'db, B, E, Self>,
+    machine: &'a Machine<'a, 'db, B, E, Self>,
     /// The call stack in which the invocation container to which this kernel
     /// is bound is participating in.
     call_stack: &'a CallStack<'a, 'db, B>,
@@ -57,7 +57,7 @@ where
     'db: 'a,
 {
     pub fn create(
-        machine: &'a Machine<'db, B, E, Self>,
+        machine: &'a Machine<'a, 'db, B, E, Self>,
         call_stack: &'a CallStack<'a, 'db, B>,
         mut invocation_msg: Message,
     ) -> anyhow::Result<Self, Box<dyn Error>> {

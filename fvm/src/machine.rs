@@ -2,6 +2,7 @@ use actor::ActorDowncast;
 use anyhow::anyhow;
 use cid::Cid;
 use num_traits::Zero;
+use std::marker::PhantomData;
 use wasmtime::{Engine, Linker};
 
 use blockstore::Blockstore;
@@ -29,7 +30,7 @@ use crate::Config;
 /// * B => Blockstore.
 /// * E => Externs.
 /// * K => Kernel.
-pub struct Machine<'db, B, E, K> {
+pub struct Machine<'a, 'db, B, E, K> {
     config: Config,
     /// The context for the execution.
     context: MachineContext,
@@ -45,6 +46,8 @@ pub struct Machine<'db, B, E, K> {
     externs: E,
     /// The state tree. It is updated with the results from every message
     /// execution as the call stack for every message concludes.
+    ///
+    /// Owned.
     state_tree: StateTree<'db, B>,
     /// The buffer of blocks to be committed to the blockstore after
     /// execution concludes.
@@ -60,13 +63,14 @@ pub struct Machine<'db, B, E, K> {
     // be a stack variable in execute_message.
     // @steb says we _can't_ store this state.
     // call_stack: CallStack<'db, B>,
+    phantom: &'a PhantomData<()>,
 }
 
-impl<'db, B, E, K> Machine<'db, B, E, K>
+impl<'a, 'db, B, E, K: 'static> Machine<'a, 'db, B, E, K>
 where
     B: Blockstore,
     E: Externs,
-    K: Kernel + 'static,
+    K: Kernel,
 {
     pub fn new(
         config: Config,
@@ -75,7 +79,7 @@ where
         state_root: &Cid,
         blockstore: &'db B,
         externs: E,
-    ) -> anyhow::Result<Machine<'db, B, E, K>> {
+    ) -> anyhow::Result<Machine<'a, 'db, B, E, K>> {
         let context = MachineContext::new(
             epoch,
             base_fee.clone(),
@@ -103,6 +107,7 @@ where
             blockstore,
             state_tree,
             commit_buffer: Default::default(), // @stebalien TBD
+            phantom: &Default::default(),
         })
     }
 
