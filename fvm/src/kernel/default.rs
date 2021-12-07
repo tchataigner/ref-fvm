@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 use std::error::Error;
 
@@ -36,6 +37,8 @@ pub struct DefaultKernel<'a, 'db, B, E> {
     blocks: BlockRegistry,
     /// Blockstore cloned from the machine.
     blockstore: &'db B,
+    /// Return stack where values returned by syscalls are stored for consumption.
+    return_stack: VecDeque<Vec<u8>>,
 }
 
 // Even though all children traits are implemented, Rust needs to know that the
@@ -57,7 +60,7 @@ where
         machine: &'a Machine<'db, B, E, Self>,
         call_stack: &'a CallStack<'a, 'db, B>,
         mut invocation_msg: Message,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> anyhow::Result<Self, Box<dyn Error>> {
         invocation_msg.from = call_stack
             .state_tree()
             .lookup_id(&invocation_msg.from)?
@@ -74,6 +77,7 @@ where
             machine,
             blocks: BlockRegistry::new(),
             blockstore: machine.blockstore(),
+            return_stack: Default::default(),
         })
     }
 }
@@ -203,5 +207,26 @@ where
         // TODO @steb
         // self.invocation_msg.value.into()
         0
+    }
+}
+
+impl<B, E> ReturnOps for DefaultKernel<'_, '_, B, E>
+where
+    B: Blockstore,
+    E: Externs,
+{
+    fn return_size(&self) -> u64 {
+        self.return_stack.back().map(Vec::len).unwrap_or(0) as u64
+    }
+
+    fn return_discard(&mut self) {
+        self.return_stack.pop_back();
+    }
+
+    fn return_pop(&mut self, mut into: &[u8]) -> u64 {
+        let ret: Vec<u8> = self.return_stack.pop_back().unwrap_or(Vec::new());
+        let len = into.len().min(ret.len());
+        into.copy_from_slice(&ret[..len]);
+        len as u64
     }
 }

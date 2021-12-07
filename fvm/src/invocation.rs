@@ -1,23 +1,23 @@
 use std::collections::VecDeque;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use multihash::Code::Blake2b256;
 #[allow(unused_imports)]
 use wasmtime::{Config as WasmtimeConfig, Engine, Instance, Linker, Module, Store};
 
 use blockstore::Blockstore;
 use fvm_shared::actor_error;
 use fvm_shared::address::Address;
+use fvm_shared::encoding::DAG_CBOR;
 use fvm_shared::error::ActorError;
 
+use crate::{DefaultKernel, Kernel};
 use crate::externs::Externs;
 use crate::gas::GasTracker;
+use crate::kernel::BlockOps;
 use crate::machine::{CallStack, Machine, MachineContext};
 use crate::message::Message;
 use crate::state_tree::ActorState;
-use crate::{DefaultKernel, Kernel};
-
-/// An entry in the return stack.
-type ReturnEntry = (bool, Vec<u8>);
 
 /// The InvocationContainer is the store data associated with a
 /// wasmtime instance.
@@ -33,8 +33,8 @@ pub struct InvocationContainer {}
 /// InvocationContainer to abstract underlying WASM runtime implementation
 /// details.
 impl InvocationContainer {
-    pub fn run<'a, 'db, B, E, K>(
-        machine: &'a Machine<B, E, K>,
+    pub fn run<'a, 'db, B, E>(
+        machine: &'a Machine<'db, B, E, DefaultKernel<'_, 'db, B, E>>,
         call_stack: &'a CallStack<'a, 'db, B>,
         msg: &'a Message,
         bytecode: &[u8],
@@ -42,23 +42,22 @@ impl InvocationContainer {
     where
         B: Blockstore,
         E: Externs,
-        K: Kernel,
         'db: 'a,
     {
         let engine = machine.engine();
         let module = Module::new(engine, bytecode)?;
-        let kernel = DefaultKernel::create(machine, call_stack, msg.clone())?;
+        let mut kernel = DefaultKernel::create(machine, call_stack, msg.clone())
+            .map_err(|e| anyhow!(e.to_string()))?;
         let mut store = Store::new(engine, kernel);
         let instance = machine.linker().instantiate(store, &module)?;
 
+        // Inject the message parameters as a block in the block registry.
+        let params_block_id = kernel.block_create(DAG_CBOR, msg.params.bytes())?;
+
         let invoke = instance.get_typed_func(&mut store, "invoke")?;
-        let (result,): (u32,) = invoke.call(&mut store, (method_params,))?;
+        let (result,): (u32,) = invoke.call(&mut store, (params_block_id))?;
         println!("{:?}", result);
         Ok(())
-
-        //
-
-        todo!()
     }
 
     // TODO
@@ -87,24 +86,4 @@ impl InvocationContainer {
     //         }
     //     };
     // }
-
-    /// Describes the top element in the return stack.
-    /// -1 means error, 0 means non-existent, otherwise the length is returned.
-    pub fn return_desc(&self) -> i64 {
-        self.return_stack.back().map_or(0, |e| {
-            if !e.0 {
-                return -1;
-            }
-            e.1.len() as i64
-        })
-    }
-
-    pub fn return_discard(&mut self) {
-        self.return_stack.pop_back();
-    }
-
-    /// Copies the top of the stack into
-    pub fn return_pop(&mut self, into: &[u8]) {
-        self.return_stack.pop_back();
-    }
 }

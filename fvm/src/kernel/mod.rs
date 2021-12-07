@@ -11,7 +11,7 @@ pub mod default;
 
 /// TODO likely don't need the Blockstore type parameter since the
 /// blockstore will be accessed through the externs.
-pub trait Kernel: ActorOps + BlockOps + InvocationOps {}
+pub trait Kernel: ActorOps + BlockOps + InvocationOps + ReturnOps {}
 
 pub type MethodId = u64;
 
@@ -67,4 +67,18 @@ pub trait ActorOps: BlockOps {
     ///
     /// This method will fail if the new state-root isn't reachable.
     fn set_root(&mut self, root: Cid) -> anyhow::Result<()>;
+}
+
+pub trait ReturnOps {
+    /// Returns the size of the top element in the return stack.
+    /// 0 means non-existent, otherwise the length is returned.
+    fn return_size(&self) -> u64;
+
+    /// Discards the top element in the return stack.
+    fn return_discard(&mut self);
+
+    /// Pops the top element off the return stack, and copies it into the
+    /// specified buffer. This buffer must be appropriately sized according to
+    /// return_size. This method returns the amount of bytes copied.
+    fn return_pop(&mut self, into: &[u8]) -> u64;
 }
