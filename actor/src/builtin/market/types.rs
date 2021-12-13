@@ -3,6 +3,7 @@
 
 use cid::Cid;
 
+use bitfield::BitField;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::bigint_ser;
 use fvm_shared::clock::ChainEpoch;
@@ -27,6 +28,13 @@ pub struct WithdrawBalanceParams {
 }
 
 #[derive(Serialize_tuple, Deserialize_tuple)]
+#[serde(transparent)]
+pub struct WithdrawBalanceReturn {
+    #[serde(with = "bigint_ser")]
+    pub amount_withdrawn: TokenAmount,
+}
+
+#[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct OnMinerSectorsTerminateParams {
     pub epoch: ChainEpoch,
     pub deal_ids: Vec<DealID>,
@@ -46,6 +54,7 @@ pub struct PublishStorageDealsParams {
 #[derive(Serialize_tuple, Deserialize_tuple)]
 pub struct PublishStorageDealsReturn {
     pub ids: Vec<DealID>,
+    pub valid_deals: BitField,
 }
 
 // Changed since V2:
