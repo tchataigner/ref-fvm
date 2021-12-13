@@ -279,7 +279,7 @@ impl Actor {
         struct Deal<'a> {
             to: Address,
             method: u64,
-            params: Serialized,
+            params: RawBytes,
             value: TokenAmount,
             di: usize,
             deal: &'a mut deal::ClientDealProposal,
@@ -394,7 +394,7 @@ impl Actor {
                 method_queue.push(Deal {
                     to: *VERIFIED_REGISTRY_ACTOR_ADDR,
                     method: crate::verifreg::Method::UseBytes as u64,
-                    params: Serialized::serialize(UseBytesParams {
+                    params: RawBytes::serialize(UseBytesParams {
                         address: client,
                         deal_size: BigInt::from(deal.proposal.piece_size.0),
                     })?,
@@ -1502,7 +1502,7 @@ impl ActorCode for Actor {
             }
             Some(Method::WithdrawBalance) => {
                 let res = Self::withdraw_balance(rt, rt.deserialize_params(params)?)?;
-                Ok(Serialized::serialize(res)?)
+                Ok(RawBytes::serialize(res)?)
             }
             Some(Method::PublishStorageDeals) => {
                 let res = Self::publish_storage_deals(rt, rt.deserialize_params(params)?)?;
