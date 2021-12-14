@@ -1,0 +1,3 @@
+[submodule "actor/tests/conformance/test-vectors"]
+	path = actor/tests/conformance/test-vectors
+	url = git@github.com:filecoin-project/test-vectors.git
