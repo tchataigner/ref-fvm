@@ -1,4 +1,5 @@
 use fvm_shared::{encoding, error::ActorError, error::ExitCode};
+use wasmtime::Trap;
 
 use crate::kernel::blocks;
 

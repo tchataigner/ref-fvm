@@ -3,6 +3,7 @@ use wasmtime::Linker;
 use crate::{kernel::Result, Kernel};
 
 mod context;
+mod exec;
 mod ipld;
 mod network;
 mod typestate;
@@ -20,5 +21,6 @@ pub fn bind_syscalls<K: Kernel + 'static>(linker: &mut Linker<K>) -> Result<()> 
     linker.func_wrap("ipld", "read", ipld::read)?;
     linker.func_wrap("ipld", "stat", ipld::stat)?;
     linker.func_wrap("ipld", "cid", ipld::cid)?;
+    linker.func_wrap("exec", "abort", exec::abort)?;
     Ok(())
 }
