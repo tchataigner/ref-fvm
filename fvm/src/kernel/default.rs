@@ -320,7 +320,21 @@ where
             &message.params,
             &message.value,
         );
-        // TODO Do something with the result.
+        // Make sure we still exist...
+        if self
+            .call_manager
+            .state_tree()
+            .get_actor_id(self.to)?
+            .is_none()
+        {
+            // Ok, we don't. RETCON: We'll revert everything that happened in the send and we'll go
+            // back to existing again.
+
+            // TODO: https://github.com/filecoin-project/fvm/issues/185
+            // We may want to allow this re-entrant deletion. But if we do, the calling actor will
+            // need to enter a poisoned state.
+            res = Err(syscall_error!(SysErrForbidden; "self deleted by re-entrent send").into());
+        }
         self.call_manager
             .state_tree_mut()
             .end_transaction(res.is_err())?;
