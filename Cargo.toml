@@ -7,10 +7,10 @@ members = [
     "actors/*",
     "examples/actor",
     "examples/blockstore-cgo/user",
-
-    "ipld/hamt",
-    "ipld/amt",
-    "ipld/bitfield",
+    "testing",
+    "testing/harness",
+    "testing/conformance",
+    "ipld/*",
 ]
 exclude = [
     "examples/blockstore-cgo"
@@ -22,6 +22,10 @@ default-members = [
     "shared",
     "lib/*",
     "actors/*",
+    "testing",
+    "testing/harness",
+    "testing/conformance",
+    "ipld/*"
     # don't build the examples by default, as they require a specific target and profile.
     # build them with cargo make examples
     # "examples/*"
@@ -29,7 +33,8 @@ default-members = [
 
 [patch.crates-io]
 multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "next" }
-cid = { git = "https://github.com/multiformats/rust-cid", branch = "next" }
+#cid = { git = "https://github.com/multiformats/rust-cid", branch = "next" }
+cid = { git = "https://github.com/multiformats/rust-cid", rev = "4b2f7f9" }
 ipld_hamt = { path = "./ipld/hamt" }
 ipld_amt = { path = "./ipld/amt" }
 fvm_shared = { path = "./shared" }

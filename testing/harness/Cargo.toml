@@ -1,0 +1,9 @@
+[package]
+name = "test-harness"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cid = { version = "0.7.0", default-features = false }
+fvm_shared = { path = "../../shared" }
+fvm_sdk = { path = "../../sdk" }

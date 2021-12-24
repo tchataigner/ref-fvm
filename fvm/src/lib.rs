@@ -1,5 +1,6 @@
 pub use kernel::{default::DefaultKernel, BlockError, Kernel};
 
+pub mod call_manager;
 pub mod externs;
 pub mod kernel;
 pub mod machine;
@@ -7,7 +8,6 @@ pub mod syscalls;
 
 mod account_actor;
 mod builtin;
-mod call_manager;
 mod gas;
 mod init_actor;
 mod state_tree;

@@ -1,0 +1,13 @@
+[package]
+name = "fvm-tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cid = { version = "0.7.0", default-features = false }
+fvm_shared = { path = "../shared" }
+fvm = { path = "../fvm" }
+blockstore = { path = "../lib/blockstore" }
+anyhow = "1.0.47"
+lazy_static = "1.4.0"
+ipld_hamt = { path = "../ipld/hamt" }
