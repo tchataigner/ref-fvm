@@ -40,7 +40,7 @@ jobs:
             args: --package conformance_tests
           - name: build
             command: build
-            args: --features builtin_actors
+            args: --tests --examples --benches --features builtin_actors
             push: true
     env:
       SCCACHE_CACHE_SIZE: 2G
