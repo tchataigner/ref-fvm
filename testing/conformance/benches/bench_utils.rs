@@ -22,8 +22,10 @@ pub fn apply_messages(
     for (msg, raw_length) in messages.drain(..) {
         // Execute the message.
         // can assume this works because it passed a test before this ran
-        exec.execute_message(msg, ApplyKind::Explicit, raw_length)
-            .unwrap();
+        if let Err(e) = exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
+            println!("fdsjfsdkjlafjksal; {:?}", e);
+            panic!();
+        };
     }
 }
 
@@ -64,6 +66,13 @@ pub fn bench_vector_variant(
         )
     });
 }
+// how hard to do checks before running benchmark
+#[derive(Clone, Copy)]
+pub enum CheckStrength {
+    FullTest,
+    OnlyCheckSuccess,
+    NoChecks,
+}
 
 pub fn bench_vector_file(
     group: &mut BenchmarkGroup<measurement::WallTime>,
@@ -71,7 +80,7 @@ pub fn bench_vector_file(
     replacement_apply_messages: Option<Vec<ApplyMessage>>,
     only_first_variant: bool,
     override_name: Option<String>,
-    skip_test: bool,
+    check_strength: CheckStrength,
 ) -> anyhow::Result<Vec<VariantResult>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
@@ -105,15 +114,15 @@ pub fn bench_vector_file(
         let name = format!("{} | {}", path.display(), variant.id);
         // this tests the variant before we run the benchmark and record the bench results to disk.
         // if we broke the test, it's not a valid optimization :P
-        let testresult;
-        if !skip_test {
-            testresult = run_variant(bs.clone(), &vector, variant)?;
-        } else {
-            // TODO probably there is a better way to do this.
-            testresult = VariantResult::Ok {
-                id: format!("{}: ATTENTION test not run!!", variant.id),
+        let testresult = match check_strength {
+            CheckStrength::FullTest => run_variant(bs.clone(), &vector, variant)?,
+            CheckStrength::OnlyCheckSuccess => {
+                run_variant_only_check_success(bs.clone(), &vector, variant)?
             }
-        }
+            CheckStrength::NoChecks => VariantResult::Ok {
+                id: format!("{}: ATTENTION test not run!!", variant.id),
+            },
+        };
         if let VariantResult::Ok { .. } = testresult {
             bench_vector_variant(
                 group,

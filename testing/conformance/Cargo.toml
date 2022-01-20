@@ -16,6 +16,7 @@ ahash = "0.7"
 num-derive = "0.3.3"
 cid = { version = "0.7", default-features = false }
 multihash = { version = "0.15", default-features = false }
+actors-runtime = { path = "../../actors/runtime" }
 fvm = { path = "../../fvm", features = ["builtin_actors"], default-features = false}
 fvm_shared = { path = "../../shared" }
 ipld_hamt = { path = "../../ipld/hamt"}

@@ -4,11 +4,16 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use conformance_tests::test_utils::*;
+use conformance_tests::vector::ApplyMessage;
 use criterion::*;
+use fvm::machine::BURNT_FUNDS_ACTOR_ADDR;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::encoding::{Cbor, RawBytes};
+use fvm_shared::message::Message;
 use walkdir::WalkDir;
 
 mod bench_utils;
-use crate::bench_utils::bench_vector_file;
+use crate::bench_utils::{bench_vector_file, CheckStrength};
 
 fn bench_no_messages(
     group: &mut BenchmarkGroup<measurement::WallTime>,
@@ -21,7 +26,7 @@ fn bench_no_messages(
         Some(vec![]),
         true,
         Some("bench_no_messages".parse().unwrap()),
-        true,
+        CheckStrength::OnlyCheckSuccess,
     )?[0]
     {
         VariantResult::Ok { .. } => Ok(()),
@@ -39,11 +44,50 @@ fn bench_no_messages(
 }
 
 fn bench_noops(
-    _group: &mut BenchmarkGroup<measurement::WallTime>,
-    _path_to_setup: PathBuf,
+    group: &mut BenchmarkGroup<measurement::WallTime>,
+    path_to_setup: PathBuf,
 ) -> anyhow::Result<()> {
-    // TODO compute a different measurement overhead by benching a vector file that just sends a ton of really low-effort messages
-    Err(anyhow::anyhow!("unimplemented"))
+    let five_hundred_nearly_noops = (0..500)
+        .map(|i| ApplyMessage {
+            bytes: Message {
+                version: 0,
+                from: BURNT_FUNDS_ACTOR_ADDR,
+                to: BURNT_FUNDS_ACTOR_ADDR,
+                sequence: i,
+                value: TokenAmount::from(0u8),
+                method_num: 2,
+                params: RawBytes::default(),
+                gas_limit: 5000000000,
+                gas_fee_cap: TokenAmount::from(0u8),
+                gas_premium: TokenAmount::from(0u8),
+            }
+            .marshal_cbor()
+            .unwrap(),
+            epoch_offset: None,
+        })
+        .collect();
+
+    match &bench_vector_file(
+        group,
+        path_to_setup,
+        Some(five_hundred_nearly_noops),
+        true,
+        Some("bench_500_noops".parse().unwrap()),
+        CheckStrength::OnlyCheckSuccess,
+    )?[0]
+    {
+        VariantResult::Ok { .. } => Ok(()),
+        VariantResult::Skipped { reason, id } => Err(anyhow::anyhow!(
+            "noops test {} skipped due to {}",
+            id,
+            reason
+        )),
+        VariantResult::Failed { reason, id } => Err(anyhow::anyhow!(
+            "noops test {} failed due to {}",
+            id,
+            reason
+        )),
+    }
 }
 
 fn bench_conformance_overhead(c: &mut Criterion) {
@@ -64,11 +108,9 @@ fn bench_conformance_overhead(c: &mut Criterion) {
     let mut group = c.benchmark_group("measurement-overhead-baselines");
     group.measurement_time(Duration::new(30, 0));
     // start by getting some baselines!
-    // TODO real error handling
     bench_no_messages(&mut group, path_to_setup.clone()).unwrap();
-    //bench_noops(&mut group, path_to_setup).unwrap();
+    bench_noops(&mut group, path_to_setup).unwrap();
     group.finish();
-    // TODO FIX WHY THIS ISN"T RUNNING UUUUGH
 }
 
 criterion_group!(benches_overhead, bench_conformance_overhead);

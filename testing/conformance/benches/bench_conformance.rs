@@ -56,7 +56,14 @@ fn bench_conformance(c: &mut Criterion) {
     }
 
     for vector in vector_results.drain(..) {
-        match bench_vector_file(&mut group, vector.clone(), None, false, None, false) {
+        match bench_vector_file(
+            &mut group,
+            vector.clone(),
+            None,
+            false,
+            None,
+            CheckStrength::FullTest,
+        ) {
             Ok(vrs) => {
                 vrs.iter()
                     .map(|vr| match vr {
