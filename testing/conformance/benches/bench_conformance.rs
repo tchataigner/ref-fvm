@@ -15,7 +15,7 @@ use walkdir::WalkDir;
 
 mod bench_utils;
 
-use crate::bench_utils::bench_vector_file;
+use crate::bench_utils::{bench_vector_file, CheckStrength};
 
 // TODO might be nice to add a command line option to not run test first?
 fn bench_conformance(c: &mut Criterion) {
