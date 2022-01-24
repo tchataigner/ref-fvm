@@ -47,6 +47,16 @@ Here's what you'll find in each directory:
   - IPLD libraries. Some of which are based on, and adapted from, the [Forest](https://github.com/ChainSafe/forest) implementation.
 - `/examples`
   - A directory eventually containing actor examples.
+- '/testing'
+  - A directory containing a submodule of test vectors to check behavior against `specs-actors`, along with a test runner and a benchmark runner using the `criterion` rust library.
+  - To run a specific test vector, run `VECTOR=test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json cargo test -- conformance --nocapture`
+  - To bench a specific test vector, run `VECTOR=test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json cargo bench -- conformance --nocapture`
+  - To bench the system's overhead for a given test vector's machine setup (which one shouldn't matter much), run `VECTOR=test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json cargo bench -- overhead --nocapture`
+    - This includes two overhead tests. `bench_no_messages` is the overhead of running the benchmark itself, it doesn't send any messages to the FVM to process. `
+    - The other is `bench_500_noops`- it checks the overhead of calling the `pubkey_address` method on an account actor 500 times- this is the most lightweight message possible to send.
+  - Benchmarks are currently very slow to run- setup and teardown for one trial takes forever! This is due to using default WASM cache, and will be fixed soon.
+  - To get a perf flamegraph, run `CARGO_PROFILE_BENCH_DEBUG=true VECTOR=testing/conformance/test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json  cargo flamegraph --bench bench_conformance -- --nocapture`. The output SVG will be in `flamegraph.svg`.
+
 
 ## Maturity roadmap
 
