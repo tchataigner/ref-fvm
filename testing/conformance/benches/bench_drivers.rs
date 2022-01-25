@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 
-use conformance_tests::test_utils::*;
+use conformance_tests::test_driver::*;
 use conformance_tests::vector::{ApplyMessage, MessageVector, Selector, TestVector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use criterion::*;

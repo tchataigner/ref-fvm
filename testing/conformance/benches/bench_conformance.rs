@@ -7,13 +7,13 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use colored::Colorize;
-use conformance_tests::test_utils::*;
+use conformance_tests::test_driver::*;
 use criterion::*;
 use walkdir::WalkDir;
 
-mod bench_utils;
+mod bench_drivers;
 
-use crate::bench_utils::{bench_vector_file, CheckStrength};
+use crate::bench_drivers::{bench_vector_file, CheckStrength};
 
 fn bench_conformance(c: &mut Criterion) {
     pretty_env_logger::init();

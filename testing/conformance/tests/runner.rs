@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use anyhow::anyhow;
 use async_std::{stream, sync, task};
 use colored::*;
-use conformance_tests::test_utils::*;
+use conformance_tests::test_driver::*;
 use conformance_tests::vector::{Selector, TestVector};
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
 use itertools::Itertools;

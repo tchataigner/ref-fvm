@@ -3,7 +3,7 @@ use std::env::var;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use conformance_tests::test_utils::*;
+use conformance_tests::test_driver::*;
 use conformance_tests::vector::ApplyMessage;
 use criterion::*;
 use fvm::machine::BURNT_FUNDS_ACTOR_ADDR;
@@ -12,8 +12,8 @@ use fvm_shared::encoding::{Cbor, RawBytes};
 use fvm_shared::message::Message;
 use walkdir::WalkDir;
 
-mod bench_utils;
-use crate::bench_utils::{bench_vector_file, CheckStrength};
+mod bench_drivers;
+use crate::bench_drivers::{bench_vector_file, CheckStrength};
 
 fn bench_init_only(
     group: &mut BenchmarkGroup<measurement::WallTime>,
