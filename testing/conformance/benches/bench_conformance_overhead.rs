@@ -15,6 +15,7 @@ use walkdir::WalkDir;
 mod bench_drivers;
 use crate::bench_drivers::{bench_vector_file, CheckStrength};
 
+/// benches only machine setup, no messages get sent. This is basically overhead of the benchmarks themselves.
 fn bench_init_only(
     group: &mut BenchmarkGroup<measurement::WallTime>,
     path_to_setup: PathBuf,
@@ -43,6 +44,7 @@ fn bench_init_only(
     }
 }
 
+/// benchmarks calling 500 simple state accesses. This benchmark computes the overhead of the message plus state access itself, doing a minimal amount of computation within the FVM.
 fn bench_500_simple_state_access(
     group: &mut BenchmarkGroup<measurement::WallTime>,
     path_to_setup: PathBuf,
@@ -89,7 +91,7 @@ fn bench_500_simple_state_access(
         )),
     }
 }
-
+/// runs overhead benchmarks, using the contents of the environment variable VECTOR as the starting FVM state
 fn bench_conformance_overhead(c: &mut Criterion) {
     pretty_env_logger::init();
 
