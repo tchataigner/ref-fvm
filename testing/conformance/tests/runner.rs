@@ -163,7 +163,7 @@ async fn run_vector(
                                 task::Builder::new()
                                     .name(name)
                                     .spawn(async move {
-                                        run_variant(bs, &v, &v.preconditions.variants[i])
+                                        run_variant(bs, &v, &v.preconditions.variants[i], true)
                                     }).unwrap(),
                             )
                     }),

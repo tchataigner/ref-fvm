@@ -15,6 +15,7 @@ mod bench_drivers;
 
 use crate::bench_drivers::{bench_vector_file, CheckStrength};
 
+/// Either grabs an environment variable called VECTOR and benches that test vector using criterion, or runs all of them in sequence. Displays output for results of benchmarking.
 fn bench_conformance(c: &mut Criterion) {
     pretty_env_logger::init();
 

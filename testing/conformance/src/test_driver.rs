@@ -164,63 +164,11 @@ pub enum VariantResult {
     Failed { reason: anyhow::Error, id: String },
 }
 
-pub fn run_variant_only_check_success(
-    bs: MemoryBlockstore,
-    v: &MessageVector,
-    variant: &Variant,
-) -> anyhow::Result<VariantResult> {
-    let id = variant.id.clone();
-
-    // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs);
-    let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
-
-    // Apply all messages in the vector.
-    for m in v.apply_messages.iter() {
-        let msg = Message::unmarshal_cbor(&m.bytes)?;
-
-        // Execute the message.
-        let mut raw_length = m.bytes.len();
-        if msg.from.protocol() == Protocol::Secp256k1 {
-            // 65 bytes signature + 1 byte type + 3 bytes for field info.
-            raw_length += SECP_SIG_LEN + 4;
-        }
-
-        match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
-            Ok(_) => (),
-            Err(e) => return Ok(VariantResult::Failed { id, reason: e }),
-        };
-    }
-
-    // Flush the machine, obtain the blockstore, and compare the
-    // resulting state root with the expected state root.
-    let _final_root = match exec.flush() {
-        Ok(cid) => cid,
-        Err(err) => {
-            return Ok(VariantResult::Failed {
-                id,
-                reason: err.context("flushing executor failed"),
-            });
-        }
-    };
-
-    let _machine = match exec.consume() {
-        Some(machine) => machine,
-        None => {
-            return Ok(VariantResult::Failed {
-                id,
-                reason: anyhow!("machine poisoned"),
-            })
-        }
-    };
-
-    Ok(VariantResult::Ok { id })
-}
-
 pub fn run_variant(
     bs: MemoryBlockstore,
     v: &MessageVector,
     variant: &Variant,
+    check_correctness: bool,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
 
@@ -244,10 +192,12 @@ pub fn run_variant(
             Err(e) => return Ok(VariantResult::Failed { id, reason: e }),
         };
 
-        // Compare the actual receipt with the expected receipt.
-        let expected_receipt = &v.postconditions.receipts[i];
-        if let Err(err) = check_msg_result(expected_receipt, &ret, i) {
-            return Ok(VariantResult::Failed { id, reason: err });
+        if check_correctness {
+            // Compare the actual receipt with the expected receipt.
+            let expected_receipt = &v.postconditions.receipts[i];
+            if let Err(err) = check_msg_result(expected_receipt, &ret, i) {
+                return Ok(VariantResult::Failed { id, reason: err });
+            }
         }
     }
 
@@ -272,14 +222,15 @@ pub fn run_variant(
             })
         }
     };
+    if check_correctness {
+        let bs = machine.consume().consume();
 
-    let bs = machine.consume().consume();
-
-    if let Err(err) = compare_state_roots(&bs, &final_root, &v.postconditions.state_tree.root_cid) {
-        return Ok(VariantResult::Failed {
-            id,
-            reason: err.context("comparing state roots failed"),
-        });
+        if let Err(err) = compare_state_roots(&bs, &final_root, &v.postconditions.state_tree.root_cid) {
+            return Ok(VariantResult::Failed {
+                id,
+                reason: err.context("comparing state roots failed"),
+            });
+        }
     }
 
     Ok(VariantResult::Ok { id })
