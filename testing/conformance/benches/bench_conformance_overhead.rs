@@ -14,6 +14,7 @@ use walkdir::WalkDir;
 
 mod bench_drivers;
 use crate::bench_drivers::{bench_vector_file, CheckStrength};
+use crate::bench_drivers::BenchVectorFileConfig;
 
 /// benches only machine setup, no messages get sent. This is basically overhead of the benchmarks themselves.
 fn bench_init_only(
@@ -24,10 +25,12 @@ fn bench_init_only(
     match &bench_vector_file(
         group,
         path_to_setup,
-        Some(vec![]),
-        true,
-        Some("bench_init_only".to_owned()),
-        CheckStrength::OnlyCheckSuccess,
+        BenchVectorFileConfig {
+            replacement_apply_messages: Some(vec![]),
+            only_first_variant: true,
+            override_name: Some("bench_init_only".to_owned()),
+            check_strength: CheckStrength::OnlyCheckSuccess,
+        }
     )?[0]
     {
         VariantResult::Ok { .. } => Ok(()),
@@ -72,10 +75,12 @@ fn bench_500_simple_state_access(
     match &bench_vector_file(
         group,
         path_to_setup,
-        Some(five_hundred_state_accesses),
-        true,
-        Some("bench_500_simple_state_access".parse().unwrap()),
-        CheckStrength::OnlyCheckSuccess,
+        BenchVectorFileConfig {
+            only_first_variant: true,
+            check_strength: CheckStrength::OnlyCheckSuccess,
+            replacement_apply_messages:  Some(five_hundred_state_accesses),
+            override_name: Some("bench_500_simple_state_access".to_owned()),
+        },
     )?[0]
     {
         VariantResult::Ok { .. } => Ok(()),
@@ -106,7 +111,7 @@ fn bench_conformance_overhead(c: &mut Criterion) {
             .unwrap(),
     };
 
-    // TODO: this is 30 seconds per benchmark... yeesh! once we get the setup running faster (by cloning VMs more efficiently), we can probably bring this down.
+    // TODO: this is 30 seconds per benchmark... yeesh! once we get the setup running faster (by cloning VMs more efficiently/fixing wasm cache), we can probably bring this down.
     let mut group = c.benchmark_group("measurement-overhead-baselines");
     group.measurement_time(Duration::new(30, 0));
     // start by getting some baselines!

@@ -63,18 +63,36 @@ pub fn bench_vector_variant(
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub enum CheckStrength {
+    /// making sure everything conforms before benching, for when you're benching the real vector as it came from specs-actors
     FullTest,
+    /// use in cases where we're swapping out the messages to apply and just using the setup (overhead tests, for example)
     OnlyCheckSuccess,
+    /// use if for some reason you want to bench something that errors (or go really fast and dangerous!)
     NoChecks,
+}
+
+/// default is FullTest
+impl Default for CheckStrength {
+    fn default() -> Self { CheckStrength::FullTest }
+}
+
+#[derive(Default)]
+/// configuration for all the various tweaks in ways you might want to bench a given vector file
+pub struct BenchVectorFileConfig {
+    /// should only the first variant be run, or all of them?
+    pub only_first_variant: bool,
+    /// should we check whether the vector executes correctly or just without error before benching, or even run no checks at all?
+    pub check_strength: CheckStrength,
+    /// optionally, should we replace the messages to apply here? useful when you just want to pull out the initial FVM setup and run something else.
+    pub replacement_apply_messages: Option<Vec<ApplyMessage>>,
+    /// override the name for the benchmark as stored on disk- this will also override all variants, so use with only_first_variant = true unless you want incorrect results.
+    pub override_name: Option<String>,
 }
 
 pub fn bench_vector_file(
     group: &mut BenchmarkGroup<measurement::WallTime>,
     vector_path: PathBuf,
-    replacement_apply_messages: Option<Vec<ApplyMessage>>,
-    only_first_variant: bool,
-    override_name: Option<String>,
-    check_strength: CheckStrength,
+    conf: BenchVectorFileConfig,
 ) -> anyhow::Result<Vec<VariantResult>> {
     let file = File::open(&vector_path)?;
     let reader = BufReader::new(file);
@@ -94,10 +112,10 @@ pub fn bench_vector_file(
             .collect());
     }
 
-    if let Some(replacement_apply_messages) = replacement_apply_messages {
+    if let Some(replacement_apply_messages) = conf.replacement_apply_messages {
         vector.apply_messages = replacement_apply_messages;
     }
-    if only_first_variant {
+    if conf.only_first_variant {
         vector.preconditions.variants = vec![vector.preconditions.variants[0].clone()];
     }
 
@@ -108,7 +126,7 @@ pub fn bench_vector_file(
         let name = format!("{} | {}", vector_path.display(), variant.id);
         // this tests the variant before we run the benchmark and record the bench results to disk.
         // if we broke the test, it's not a valid optimization :P
-        let testresult = match check_strength {
+        let testresult = match conf.check_strength {
             CheckStrength::FullTest => run_variant(bs.clone(), &vector, variant, true)?,
             CheckStrength::OnlyCheckSuccess => {
                 run_variant(bs.clone(), &vector, variant, false)?
@@ -134,7 +152,7 @@ pub fn bench_vector_file(
         if let VariantResult::Ok { .. } = testresult {
             bench_vector_variant(
                 group,
-                override_name.as_ref().unwrap_or(&name).to_string(),
+                conf.override_name.as_ref().unwrap_or(&name).to_string(),
                 variant,
                 &vector,
                 messages_with_lengths,
