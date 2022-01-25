@@ -1,8 +1,6 @@
-// Copyright 2019-2022 ChainSafe Systems
-// SPDX-License-Identifier: Apache-2.0, MIT
 //#[macro_use]
 extern crate criterion;
-// TODO document how to use this?
+
 use std::env::var;
 use std::iter;
 use std::path::{Path, PathBuf};

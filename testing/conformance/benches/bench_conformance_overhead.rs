@@ -15,7 +15,7 @@ use walkdir::WalkDir;
 mod bench_utils;
 use crate::bench_utils::{bench_vector_file, CheckStrength};
 
-fn bench_no_messages(
+fn bench_init_only(
     group: &mut BenchmarkGroup<measurement::WallTime>,
     path_to_setup: PathBuf,
 ) -> anyhow::Result<()> {
@@ -25,7 +25,7 @@ fn bench_no_messages(
         path_to_setup,
         Some(vec![]),
         true,
-        Some("bench_no_messages".parse().unwrap()),
+        Some("bench_init_only".to_owned()),
         CheckStrength::OnlyCheckSuccess,
     )?[0]
     {
@@ -43,11 +43,11 @@ fn bench_no_messages(
     }
 }
 
-fn bench_noops(
+fn bench_500_simple_state_access(
     group: &mut BenchmarkGroup<measurement::WallTime>,
     path_to_setup: PathBuf,
 ) -> anyhow::Result<()> {
-    let five_hundred_nearly_noops = (0..500)
+    let five_hundred_state_accesses = (0..500)
         .map(|i| ApplyMessage {
             bytes: Message {
                 version: 0,
@@ -70,9 +70,9 @@ fn bench_noops(
     match &bench_vector_file(
         group,
         path_to_setup,
-        Some(five_hundred_nearly_noops),
+        Some(five_hundred_state_accesses),
         true,
-        Some("bench_500_noops".parse().unwrap()),
+        Some("bench_500_simple_state_access".parse().unwrap()),
         CheckStrength::OnlyCheckSuccess,
     )?[0]
     {
@@ -108,8 +108,8 @@ fn bench_conformance_overhead(c: &mut Criterion) {
     let mut group = c.benchmark_group("measurement-overhead-baselines");
     group.measurement_time(Duration::new(30, 0));
     // start by getting some baselines!
-    bench_no_messages(&mut group, path_to_setup.clone()).unwrap();
-    bench_noops(&mut group, path_to_setup).unwrap();
+    bench_init_only(&mut group, path_to_setup.clone()).unwrap();
+    bench_500_simple_state_access(&mut group, path_to_setup).unwrap();
     group.finish();
 }
 

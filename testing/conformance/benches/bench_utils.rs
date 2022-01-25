@@ -76,13 +76,13 @@ pub enum CheckStrength {
 
 pub fn bench_vector_file(
     group: &mut BenchmarkGroup<measurement::WallTime>,
-    path: PathBuf,
+    vector_path: PathBuf,
     replacement_apply_messages: Option<Vec<ApplyMessage>>,
     only_first_variant: bool,
     override_name: Option<String>,
     check_strength: CheckStrength,
 ) -> anyhow::Result<Vec<VariantResult>> {
-    let file = File::open(&path)?;
+    let file = File::open(&vector_path)?;
     let reader = BufReader::new(file);
     let vector: TestVector = serde_json::from_reader(reader)?;
 
@@ -111,7 +111,7 @@ pub fn bench_vector_file(
 
     let mut ret = vec![];
     for variant in vector.preconditions.variants.iter() {
-        let name = format!("{} | {}", path.display(), variant.id);
+        let name = format!("{} | {}", vector_path.display(), variant.id);
         // this tests the variant before we run the benchmark and record the bench results to disk.
         // if we broke the test, it's not a valid optimization :P
         let testresult = match check_strength {

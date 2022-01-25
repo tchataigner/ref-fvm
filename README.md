@@ -57,8 +57,8 @@ Here's what you'll find in each directory:
     - To bench the system's overhead for the setup of the machine for a given test vector, run `VECTOR=test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json cargo bench -- overhead --nocapture`. Note that the vector choice doesn't matter much, because the Machine initialization procedure is identicall for all vectors.
     - To get a perf flamegraph, run `CARGO_PROFILE_BENCH_DEBUG=true VECTOR=testing/conformance/test-vectors/corpus/specs_actors_v6/REST_OF_TEST_VECTOR.json  cargo flamegraph --bench bench_conformance -- --nocapture`. The output SVG will be in `flamegraph.svg`.
   - Overhead measurement scenarios. There are two overhead measurement scenarios included.
-    1. `bench_no_messages`: measure the overhead of running the benchmark itself, it doesn't send any messages to the FVM to process.
-    2. `bench_500_noops`: measures the overhead of calling the `pubkey_address` method on an account actor 500 times, this is the most lightweight message possible to send that actually executes actor logic (unlike a bare send).
+    1. `bench_init_only`: measure the overhead of running the benchmark itself, it doesn't send any messages to the FVM to process.
+    2. `bench_500_simple_state_access`: measures the overhead of calling the `pubkey_address` method on an account actor 500 times, this is the most lightweight message possible to send that actually executes actor logic (unlike a bare send).
   - Disclaimers
     - Benchmarks are currently very slow to run, setup and teardown. This is due to using default WASM cache, and will be fixed soon.
 
