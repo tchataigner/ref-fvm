@@ -87,7 +87,7 @@ fn bench_conformance(c: &mut Criterion) {
                     vector.display(),
                     "n/a"
                 );
-                println!("\t|> reason: {:#}", e.to_string());
+                println!("\t|> reason: {:#}", e);
                 corrupt_files += 1;
             }
         }

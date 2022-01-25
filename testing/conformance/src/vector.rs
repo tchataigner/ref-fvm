@@ -15,7 +15,7 @@ use fvm_shared::receipt::Receipt;
 use ipld_car::load_car;
 use serde::{Deserialize, Deserializer};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct StateTreeVector {
     #[serde(with = "super::cidjson")]
     pub root_cid: Cid,
@@ -41,7 +41,7 @@ pub struct MetaData {
     pub gen: Vec<GenerationData>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PreConditions {
     pub state_tree: StateTreeVector,
     #[serde(default)]
@@ -52,7 +52,7 @@ pub struct PreConditions {
     pub variants: Vec<Variant>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PostConditions {
     pub state_tree: StateTreeVector,
     #[serde(with = "message_receipt_vec")]
@@ -61,7 +61,7 @@ pub struct PostConditions {
     pub receipts_roots: Vec<Cid>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Selector {
     #[serde(default)]
     pub chaos_actor: Option<String>,
@@ -121,7 +121,7 @@ pub enum TestVector {
     Message(MessageVector),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct MessageVector {
     pub selector: Option<Selector>,
     #[serde(rename = "_meta")]
@@ -161,7 +161,7 @@ impl<R: std::io::Read + Unpin + std::io::BufRead> AsyncRead for GzipDecoder<R> {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ApplyMessage {
     #[serde(with = "base64_bytes")]
     pub bytes: Vec<u8>,

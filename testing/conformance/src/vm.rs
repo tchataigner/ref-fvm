@@ -1,5 +1,4 @@
 use std::convert::TryFrom;
-use std::path::Path;
 
 use cid::Cid;
 use fvm::call_manager::{CallManager, DefaultCallManager, InvocationResult};
@@ -111,7 +110,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         ];
         actor_codes
             .iter()
-            .map(|code| self.load_module(&*code))
+            .map(|code| self.load_module(*code))
             .collect()
     }
 }

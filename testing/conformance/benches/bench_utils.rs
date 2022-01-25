@@ -39,7 +39,7 @@ pub fn bench_vector_variant(
     group.bench_function(name, move |b| {
         b.iter_batched_ref(
             || {
-                let v = v.clone();
+                let v = &(*v).clone();
                 let bs = bs.clone();
                 // TODO next few lines don't impact the benchmarks, but it might make them run waaaay more slowly... ought to make a base copy of the machine and exec and deepcopy them each time.
                 let machine = TestMachine::new_for_vector(v, variant, bs);
@@ -67,6 +67,7 @@ pub fn bench_vector_variant(
     });
 }
 // how hard to do checks before running benchmark
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub enum CheckStrength {
     FullTest,
