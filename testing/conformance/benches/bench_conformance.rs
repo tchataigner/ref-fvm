@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use colored::Colorize;
-use conformance_tests::test_driver::*;
+use conformance_tests::driver::*;
 use criterion::*;
 use walkdir::WalkDir;
 

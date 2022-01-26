@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 pub mod cidjson;
+pub mod driver;
 pub mod externs;
 pub mod rand;
-pub mod test_driver;
 pub mod vector;
 pub mod vm;

@@ -3,7 +3,7 @@ use std::env::var;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use conformance_tests::test_driver::*;
+use conformance_tests::driver::*;
 use conformance_tests::vector::ApplyMessage;
 use criterion::*;
 use fvm::machine::BURNT_FUNDS_ACTOR_ADDR;
