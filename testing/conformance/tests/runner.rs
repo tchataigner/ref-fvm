@@ -11,6 +11,7 @@ use anyhow::anyhow;
 use async_std::{stream, sync, task};
 use colored::*;
 use conformance_tests::driver::*;
+use conformance_tests::report;
 use conformance_tests::vector::{Selector, TestVector};
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
 use itertools::Itertools;
@@ -64,14 +65,6 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     let mut succeeded = 0;
     let mut failed = 0;
     let mut skipped = 0;
-
-    // Output the result to stdout.
-    // Doing this here instead of in an inspect so that we get streaming output.
-    macro_rules! report {
-        ($status:expr, $path:expr, $id:expr) => {
-            println!("[{}] vector: {} | variant: {}", $status, $path, $id);
-        };
-    }
 
     while let Some((path, res)) = results.next().await.transpose()? {
         match res {

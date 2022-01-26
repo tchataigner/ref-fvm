@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use colored::Colorize;
 use conformance_tests::driver::*;
+use conformance_tests::report;
 use criterion::*;
 use walkdir::WalkDir;
 
@@ -44,14 +45,6 @@ fn bench_conformance(c: &mut Criterion) {
     let mut failed = 0;
     let mut skipped = 0;
     let mut corrupt_files = 0;
-
-    // Output the result to stdout.
-    // Doing this here instead of in an inspect so that we get streaming output.
-    macro_rules! report {
-        ($status:expr, $path:expr, $id:expr) => {
-            println!("[{}] vector: {} | variant: {}", $status, $path, $id);
-        };
-    }
 
     for vector_path in vector_results.drain(..) {
         let mut message_vector = match load_vector_file(path_to_setup: PathBuf) {

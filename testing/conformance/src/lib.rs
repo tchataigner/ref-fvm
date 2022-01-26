@@ -7,3 +7,12 @@ pub mod externs;
 pub mod rand;
 pub mod vector;
 pub mod vm;
+
+// Output the result to stdout.
+// Doing this here instead of in an inspect so that we get streaming output.
+#[macro_export]
+macro_rules! report {
+    ($status:expr, $path:expr, $id:expr) => {
+        println!("[{}] vector: {} | variant: {}", $status, $path, $id);
+    };
+}
