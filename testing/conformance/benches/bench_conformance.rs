@@ -13,7 +13,7 @@ use walkdir::WalkDir;
 
 mod bench_drivers;
 
-use crate::bench_drivers::{bench_vector_file, BenchVectorFileConfig};
+use crate::bench_drivers::{bench_vector_file, load_vector_file, BenchVectorFileConfig};
 
 /// Either grabs an environment variable called VECTOR and benches that test vector using criterion, or runs all of them in sequence. Displays output for results of benchmarking.
 fn bench_conformance(c: &mut Criterion) {
@@ -54,7 +54,33 @@ fn bench_conformance(c: &mut Criterion) {
     }
 
     for vector_path in vector_results.drain(..) {
-        match bench_vector_file(&mut group, vector.clone(), BenchVectorFileConfig::default()) {
+        let mut message_vector = match load_vector_file(path_to_setup: PathBuf) {
+            Ok(Some(mv)) => Ok(mv),
+            Err(e) => {
+                report!(
+                    "FILE FAIL/NOT BENCHED".white().on_purple(),
+                    vector.display(),
+                    "n/a"
+                );
+                println!("\t|> reason: {:#}", e);
+                corrupt_files += 1;
+                continue;
+            }
+            Ok(None) => {
+                report!(
+                    "SKIPPING FILE DUE TO SELECTOR".on_yellow(),
+                    vector_path.display(),
+                    "file"
+                );
+                skipped += 1;
+                continue;
+            }
+        };
+        match &bench_vector_file(
+            &mut group,
+            &mut message_vector,
+            BenchVectorFileConfig::default(),
+        ) {
             Ok(vrs) => {
                 vrs.iter()
                     .map(|vr| match vr {
@@ -67,22 +93,8 @@ fn bench_conformance(c: &mut Criterion) {
                             println!("\t|> reason: {:#}", reason);
                             failed += 1;
                         }
-                        VariantResult::Skipped { reason, id } => {
-                            report!("SKIP/NOT BENCHED".on_yellow(), vector.display(), id);
-                            println!("\t|> reason: {:#}", reason);
-                            skipped += 1;
-                        }
                     })
                     .for_each(drop);
-            }
-            Err(e) => {
-                report!(
-                    "FILE FAIL/NOT BENCHED".white().on_purple(),
-                    vector.display(),
-                    "n/a"
-                );
-                println!("\t|> reason: {:#}", e);
-                corrupt_files += 1;
             }
         }
     }

@@ -110,7 +110,7 @@ pub fn bench_vector_file(
     group: &mut BenchmarkGroup<measurement::WallTime>,
     vector: &mut MessageVector,
     conf: BenchVectorFileConfig,
-) -> anyhow::Result<Vec<VariantResult>> {
+) -> Vec<VariantResult> {
     if let Some(replacement_apply_messages) = conf.replacement_apply_messages {
         vector.apply_messages = replacement_apply_messages;
     }
@@ -158,5 +158,5 @@ pub fn bench_vector_file(
         }
         ret.push(testresult);
     }
-    Ok(ret)
+    ret
 }

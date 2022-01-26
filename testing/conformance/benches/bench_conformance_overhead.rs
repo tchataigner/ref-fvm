@@ -13,7 +13,9 @@ use fvm_shared::message::Message;
 use walkdir::WalkDir;
 
 mod bench_drivers;
-use crate::bench_drivers::{bench_vector_file, BenchVectorFileConfig, CheckStrength};
+use crate::bench_drivers::{
+    bench_vector_file, load_vector_file, BenchVectorFileConfig, CheckStrength,
+};
 
 /// benches only machine setup, no messages get sent. This is basically overhead of the benchmarks themselves.
 fn bench_init_only(
@@ -21,9 +23,15 @@ fn bench_init_only(
     path_to_setup: PathBuf,
 ) -> anyhow::Result<()> {
     // compute measurement overhead by benching running a single empty vector of zero messages
+    let mut message_vector = match load_vector_file(path_to_setup: PathBuf)? {
+        Some(mv) => Ok(mv),
+        None => Err(anyhow::anyhow!(
+            "chosen vector was filtered out by selector"
+        )),
+    }?;
     match &bench_vector_file(
         group,
-        path_to_setup,
+        &mut message_vector,
         BenchVectorFileConfig {
             replacement_apply_messages: Some(vec![]),
             only_first_variant: true,
@@ -71,9 +79,15 @@ fn bench_500_simple_state_access(
         })
         .collect();
 
+    let mut message_vector = match load_vector_file(path_to_setup: PathBuf)? {
+        Some(mv) => Ok(mv),
+        None => Err(anyhow::anyhow!(
+            "chosen vector was filtered out by selector"
+        )),
+    }?;
     match &bench_vector_file(
         group,
-        path_to_setup,
+        &mut message_vector,
         BenchVectorFileConfig {
             only_first_variant: true,
             check_strength: CheckStrength::OnlyCheckSuccess,
