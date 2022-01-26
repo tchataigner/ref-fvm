@@ -28,7 +28,8 @@ pub fn apply_messages(
     for (msg, raw_length) in messages.drain(..) {
         // Execute the message.
         // can assume this works because it passed a test before this ran
-        exec.execute_message(msg, ApplyKind::Explicit, raw_length).unwrap();
+        exec.execute_message(msg, ApplyKind::Explicit, raw_length)
+            .unwrap();
     }
 }
 
@@ -73,7 +74,9 @@ pub enum CheckStrength {
 
 /// default is FullTest
 impl Default for CheckStrength {
-    fn default() -> Self { CheckStrength::FullTest }
+    fn default() -> Self {
+        CheckStrength::FullTest
+    }
 }
 
 #[derive(Default)]
@@ -89,11 +92,7 @@ pub struct BenchVectorFileConfig {
     pub override_name: Option<String>,
 }
 
-pub fn bench_vector_file(
-    group: &mut BenchmarkGroup<measurement::WallTime>,
-    vector_path: PathBuf,
-    conf: BenchVectorFileConfig,
-) -> anyhow::Result<Vec<VariantResult>> {
+pub fn load_vector_file(vector_path: PathBuf) -> anyhow::Result<Option<MessageVector>> {
     let file = File::open(&vector_path)?;
     let reader = BufReader::new(file);
     let vector: TestVector = serde_json::from_reader(reader)?;
@@ -101,17 +100,17 @@ pub fn bench_vector_file(
     let TestVector::Message(mut vector) = vector;
     let skip = !vector.selector.as_ref().map_or(true, Selector::supported);
     if skip {
-        return Ok(vector
-            .preconditions
-            .variants
-            .iter()
-            .map(|variant| VariantResult::Skipped {
-                reason: "selector not supported.".parse().unwrap(),
-                id: variant.id.clone(),
-            })
-            .collect());
+        Ok(None)
+    } else {
+        Ok(Some(vector))
     }
+}
 
+pub fn bench_vector_file(
+    group: &mut BenchmarkGroup<measurement::WallTime>,
+    vector: &mut MessageVector,
+    conf: BenchVectorFileConfig,
+) -> anyhow::Result<Vec<VariantResult>> {
     if let Some(replacement_apply_messages) = conf.replacement_apply_messages {
         vector.apply_messages = replacement_apply_messages;
     }
@@ -128,9 +127,7 @@ pub fn bench_vector_file(
         // if we broke the test, it's not a valid optimization :P
         let testresult = match conf.check_strength {
             CheckStrength::FullTest => run_variant(bs.clone(), &vector, variant, true)?,
-            CheckStrength::OnlyCheckSuccess => {
-                run_variant(bs.clone(), &vector, variant, false)?
-            }
+            CheckStrength::OnlyCheckSuccess => run_variant(bs.clone(), &vector, variant, false)?,
             CheckStrength::NoChecks => VariantResult::Ok {
                 id: format!("{}: ATTENTION test not run!!", variant.id),
             },

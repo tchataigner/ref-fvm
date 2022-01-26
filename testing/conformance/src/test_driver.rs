@@ -225,7 +225,9 @@ pub fn run_variant(
     if check_correctness {
         let bs = machine.consume().consume();
 
-        if let Err(err) = compare_state_roots(&bs, &final_root, &v.postconditions.state_tree.root_cid) {
+        if let Err(err) =
+            compare_state_roots(&bs, &final_root, &v.postconditions.state_tree.root_cid)
+        {
             return Ok(VariantResult::Failed {
                 id,
                 reason: err.context("comparing state roots failed"),

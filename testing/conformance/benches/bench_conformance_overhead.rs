@@ -13,8 +13,7 @@ use fvm_shared::message::Message;
 use walkdir::WalkDir;
 
 mod bench_drivers;
-use crate::bench_drivers::{bench_vector_file, CheckStrength};
-use crate::bench_drivers::BenchVectorFileConfig;
+use crate::bench_drivers::{bench_vector_file, BenchVectorFileConfig, CheckStrength};
 
 /// benches only machine setup, no messages get sent. This is basically overhead of the benchmarks themselves.
 fn bench_init_only(
@@ -30,7 +29,7 @@ fn bench_init_only(
             only_first_variant: true,
             override_name: Some("bench_init_only".to_owned()),
             check_strength: CheckStrength::OnlyCheckSuccess,
-        }
+        },
     )?[0]
     {
         VariantResult::Ok { .. } => Ok(()),
@@ -78,7 +77,7 @@ fn bench_500_simple_state_access(
         BenchVectorFileConfig {
             only_first_variant: true,
             check_strength: CheckStrength::OnlyCheckSuccess,
-            replacement_apply_messages:  Some(five_hundred_state_accesses),
+            replacement_apply_messages: Some(five_hundred_state_accesses),
             override_name: Some("bench_500_simple_state_access".to_owned()),
         },
     )?[0]

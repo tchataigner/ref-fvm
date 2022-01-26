@@ -160,12 +160,13 @@ async fn run_vector(
                         let name =
                             format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
                         futures::future::Either::Right(
-                                task::Builder::new()
-                                    .name(name)
-                                    .spawn(async move {
-                                        run_variant(bs, &v, &v.preconditions.variants[i], true)
-                                    }).unwrap(),
-                            )
+                            task::Builder::new()
+                                .name(name)
+                                .spawn(async move {
+                                    run_variant(bs, &v, &v.preconditions.variants[i], true)
+                                })
+                                .unwrap(),
+                        )
                     }),
                 ))
             }

@@ -13,8 +13,7 @@ use walkdir::WalkDir;
 
 mod bench_drivers;
 
-use crate::bench_drivers::{bench_vector_file};
-use crate::bench_drivers::BenchVectorFileConfig;
+use crate::bench_drivers::{bench_vector_file, BenchVectorFileConfig};
 
 /// Either grabs an environment variable called VECTOR and benches that test vector using criterion, or runs all of them in sequence. Displays output for results of benchmarking.
 fn bench_conformance(c: &mut Criterion) {
@@ -54,12 +53,8 @@ fn bench_conformance(c: &mut Criterion) {
         };
     }
 
-    for vector in vector_results.drain(..) {
-        match bench_vector_file(
-            &mut group,
-            vector.clone(),
-            BenchVectorFileConfig::default()
-        ) {
+    for vector_path in vector_results.drain(..) {
+        match bench_vector_file(&mut group, vector.clone(), BenchVectorFileConfig::default()) {
             Ok(vrs) => {
                 vrs.iter()
                     .map(|vr| match vr {
