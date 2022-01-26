@@ -62,7 +62,7 @@ pub fn bench_vector_variant(
 }
 /// This tells `bench_vector_file` how hard to do checks on whether things succeed before running benchmark
 #[allow(dead_code)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum CheckStrength {
     /// making sure everything conforms before benching, for when you're benching the real vector as it came from specs-actors
     FullTest,
@@ -88,8 +88,8 @@ pub struct BenchVectorFileConfig {
     pub check_strength: CheckStrength,
     /// optionally, should we replace the messages to apply here? useful when you just want to pull out the initial FVM setup and run something else.
     pub replacement_apply_messages: Option<Vec<ApplyMessage>>,
-    /// override the name for the benchmark as stored on disk- this will also override all variants, so use with only_first_variant = true unless you want incorrect results.
-    pub override_name: Option<String>,
+    /// name for the benchmark as stored on disk.
+    pub bench_name: String,
 }
 
 pub fn load_vector_file(vector_path: PathBuf) -> anyhow::Result<Option<MessageVector>> {
@@ -97,7 +97,7 @@ pub fn load_vector_file(vector_path: PathBuf) -> anyhow::Result<Option<MessageVe
     let reader = BufReader::new(file);
     let vector: TestVector = serde_json::from_reader(reader)?;
 
-    let TestVector::Message(mut vector) = vector;
+    let TestVector::Message(vector) = vector;
     let skip = !vector.selector.as_ref().map_or(true, Selector::supported);
     if skip {
         Ok(None)
@@ -106,11 +106,12 @@ pub fn load_vector_file(vector_path: PathBuf) -> anyhow::Result<Option<MessageVe
     }
 }
 
+/// benches each variant in a vector file. returns an err if a vector fails to parse the messages out in run_variant, or if a test fails before benching if you set FullTest or OnlyCheckSuccess.
 pub fn bench_vector_file(
     group: &mut BenchmarkGroup<measurement::WallTime>,
     vector: &mut MessageVector,
     conf: BenchVectorFileConfig,
-) -> Vec<VariantResult> {
+) -> anyhow::Result<()> {
     if let Some(replacement_apply_messages) = conf.replacement_apply_messages {
         vector.apply_messages = replacement_apply_messages;
     }
@@ -120,43 +121,41 @@ pub fn bench_vector_file(
 
     let (bs, _) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
 
-    let mut ret = vec![];
     for variant in vector.preconditions.variants.iter() {
-        let name = format!("{} | {}", vector_path.display(), variant.id);
+        let name = format!("{} | {}", conf.bench_name, variant.id);
         // this tests the variant before we run the benchmark and record the bench results to disk.
         // if we broke the test, it's not a valid optimization :P
         let testresult = match conf.check_strength {
-            CheckStrength::FullTest => run_variant(bs.clone(), &vector, variant, true)?,
-            CheckStrength::OnlyCheckSuccess => run_variant(bs.clone(), &vector, variant, false)?,
-            CheckStrength::NoChecks => VariantResult::Ok {
-                id: format!("{}: ATTENTION test not run!!", variant.id),
-            },
+            CheckStrength::FullTest => {
+                run_variant(bs.clone(), vector, variant, true).map_err(|e| {
+                    anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
+                })?
+            }
+            CheckStrength::OnlyCheckSuccess => run_variant(bs.clone(), vector, variant, false)
+                .map_err(|e| {
+                    anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
+                })?,
+            CheckStrength::NoChecks => VariantResult::Ok { id: variant.id.clone() },
         };
-        let messages_with_lengths: Vec<(Message, usize)> = vector
-            .apply_messages
-            .iter()
-            .map(|m| {
-                let unmarshalled = Message::unmarshal_cbor(&m.bytes).unwrap();
-                let mut raw_length = m.bytes.len();
-                if unmarshalled.from.protocol() == Protocol::Secp256k1 {
-                    // 65 bytes signature + 1 byte type + 3 bytes for field info.
-                    raw_length += SECP_SIG_LEN + 4;
-                }
-                (unmarshalled, raw_length)
-            })
-            .collect();
 
         if let VariantResult::Ok { .. } = testresult {
-            bench_vector_variant(
-                group,
-                conf.override_name.as_ref().unwrap_or(&name).to_string(),
-                variant,
-                &vector,
-                messages_with_lengths,
-                &bs,
-            );
-        }
-        ret.push(testresult);
+            let messages_with_lengths: Vec<(Message, usize)> = vector
+                .apply_messages
+                .iter()
+                .map(|m| {
+                    let unmarshalled = Message::unmarshal_cbor(&m.bytes).unwrap();
+                    let mut raw_length = m.bytes.len();
+                    if unmarshalled.from.protocol() == Protocol::Secp256k1 {
+                        // 65 bytes signature + 1 byte type + 3 bytes for field info.
+                        raw_length += SECP_SIG_LEN + 4;
+                    }
+                    (unmarshalled, raw_length)
+                })
+                .collect();
+            bench_vector_variant(group, name, variant, vector, messages_with_lengths, &bs);
+        } else {
+            return Err(anyhow::anyhow!("a test failed, get the tests passing/running before running benchmarks in {:?} mode: {}", conf.check_strength ,name));
+        };
     }
-    ret
+    Ok(())
 }

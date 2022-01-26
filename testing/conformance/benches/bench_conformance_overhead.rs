@@ -23,35 +23,22 @@ fn bench_init_only(
     path_to_setup: PathBuf,
 ) -> anyhow::Result<()> {
     // compute measurement overhead by benching running a single empty vector of zero messages
-    let mut message_vector = match load_vector_file(path_to_setup: PathBuf)? {
+    let mut message_vector = match load_vector_file(path_to_setup)? {
         Some(mv) => Ok(mv),
         None => Err(anyhow::anyhow!(
             "chosen vector was filtered out by selector"
         )),
     }?;
-    match &bench_vector_file(
+    bench_vector_file(
         group,
         &mut message_vector,
         BenchVectorFileConfig {
             replacement_apply_messages: Some(vec![]),
             only_first_variant: true,
-            override_name: Some("bench_init_only".to_owned()),
+            bench_name: "bench_init_only".to_owned(),
             check_strength: CheckStrength::OnlyCheckSuccess,
         },
-    )?[0]
-    {
-        VariantResult::Ok { .. } => Ok(()),
-        VariantResult::Skipped { reason, id } => Err(anyhow::anyhow!(
-            "no messages test {} skipped due to {}",
-            id,
-            reason
-        )),
-        VariantResult::Failed { reason, id } => Err(anyhow::anyhow!(
-            "no messages test {} failed due to {}",
-            id,
-            reason
-        )),
-    }
+    )
 }
 
 /// benchmarks calling 500 simple state accesses. This benchmark computes the overhead of the message plus state access itself, doing a minimal amount of computation within the FVM.
@@ -79,35 +66,22 @@ fn bench_500_simple_state_access(
         })
         .collect();
 
-    let mut message_vector = match load_vector_file(path_to_setup: PathBuf)? {
+    let mut message_vector = match load_vector_file(path_to_setup)? {
         Some(mv) => Ok(mv),
         None => Err(anyhow::anyhow!(
             "chosen vector was filtered out by selector"
         )),
     }?;
-    match &bench_vector_file(
+    bench_vector_file(
         group,
         &mut message_vector,
         BenchVectorFileConfig {
             only_first_variant: true,
             check_strength: CheckStrength::OnlyCheckSuccess,
             replacement_apply_messages: Some(five_hundred_state_accesses),
-            override_name: Some("bench_500_simple_state_access".to_owned()),
+            bench_name: "bench_500_simple_state_access".to_owned(),
         },
-    )?[0]
-    {
-        VariantResult::Ok { .. } => Ok(()),
-        VariantResult::Skipped { reason, id } => Err(anyhow::anyhow!(
-            "noops test {} skipped due to {}",
-            id,
-            reason
-        )),
-        VariantResult::Failed { reason, id } => Err(anyhow::anyhow!(
-            "noops test {} failed due to {}",
-            id,
-            reason
-        )),
-    }
+    )
 }
 /// runs overhead benchmarks, using the contents of the environment variable VECTOR as the starting FVM state
 fn bench_conformance_overhead(c: &mut Criterion) {

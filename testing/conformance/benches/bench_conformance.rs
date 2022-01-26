@@ -14,7 +14,9 @@ use walkdir::WalkDir;
 
 mod bench_drivers;
 
-use crate::bench_drivers::{bench_vector_file, load_vector_file, BenchVectorFileConfig};
+use crate::bench_drivers::{
+    bench_vector_file, load_vector_file, BenchVectorFileConfig, CheckStrength,
+};
 
 /// Either grabs an environment variable called VECTOR and benches that test vector using criterion, or runs all of them in sequence. Displays output for results of benchmarking.
 fn bench_conformance(c: &mut Criterion) {
@@ -41,70 +43,49 @@ fn bench_conformance(c: &mut Criterion) {
     let mut group = c.benchmark_group("conformance-tests");
     group.measurement_time(Duration::new(30, 0));
 
-    let mut succeeded = 0;
-    let mut failed = 0;
-    let mut skipped = 0;
-    let mut corrupt_files = 0;
-
     for vector_path in vector_results.drain(..) {
-        let mut message_vector = match load_vector_file(path_to_setup: PathBuf) {
-            Ok(Some(mv)) => Ok(mv),
+        let mut message_vector = match load_vector_file(vector_path.clone()) {
+            Ok(Some(mv)) => mv,
             Err(e) => {
                 report!(
-                    "FILE FAIL/NOT BENCHED".white().on_purple(),
-                    vector.display(),
+                    "FILE PARSING FAIL/NOT BENCHED".white().on_purple(),
+                    &vector_path.display().to_string(),
                     "n/a"
                 );
                 println!("\t|> reason: {:#}", e);
-                corrupt_files += 1;
                 continue;
             }
             Ok(None) => {
                 report!(
                     "SKIPPING FILE DUE TO SELECTOR".on_yellow(),
-                    vector_path.display(),
+                    &vector_path.display().to_string(),
                     "file"
                 );
-                skipped += 1;
                 continue;
             }
         };
-        match &bench_vector_file(
+        match bench_vector_file(
             &mut group,
             &mut message_vector,
-            BenchVectorFileConfig::default(),
+            BenchVectorFileConfig {
+                only_first_variant: false,
+                check_strength: CheckStrength::default(),
+                replacement_apply_messages: None,
+                bench_name: vector_path.display().to_string().clone(),
+            },
         ) {
-            Ok(vrs) => {
-                vrs.iter()
-                    .map(|vr| match vr {
-                        VariantResult::Ok { id } => {
-                            report!("OKAY/BENCHED".on_green(), vector.display(), id);
-                            succeeded += 1;
-                        }
-                        VariantResult::Failed { reason, id } => {
-                            report!("FAIL/NOT BENCHED".white().on_red(), vector.display(), id);
-                            println!("\t|> reason: {:#}", reason);
-                            failed += 1;
-                        }
-                    })
-                    .for_each(drop);
-            }
-        }
+            Ok(()) => report!(
+                "SUCCESSFULLY BENCHED TEST FILE".on_green(),
+                vector_path.display(),
+                "n/a"
+            ),
+            Err(e) => report!(
+                "FAILED TO BENCH TEST FILE".white().on_red(),
+                vector_path.display(),
+                e.to_string()
+            ),
+        };
     }
-
-    println!();
-    println!(
-        "{}",
-        format!(
-            "benchmarking tests result: {}/{} tests benchmarked ({} skipped, {} failed, {} vector files unparseable)",
-            succeeded,
-            failed + succeeded + skipped + corrupt_files,
-            skipped,
-            failed,
-            corrupt_files
-        )
-            .bold()
-    );
 
     group.finish();
 }
