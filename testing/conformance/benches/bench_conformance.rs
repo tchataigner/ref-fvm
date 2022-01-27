@@ -59,7 +59,7 @@ fn bench_conformance(c: &mut Criterion) {
                 report!(
                     "SKIPPING FILE DUE TO SELECTOR".on_yellow(),
                     &vector_path.display().to_string(),
-                    "file"
+                    "n/a"
                 );
                 continue;
             }
@@ -79,11 +79,14 @@ fn bench_conformance(c: &mut Criterion) {
                 vector_path.display(),
                 "n/a"
             ),
-            Err(e) => report!(
-                "FAILED TO BENCH TEST FILE".white().on_red(),
-                vector_path.display(),
-                e.to_string()
-            ),
+            Err(e) => {
+                report!(
+                    "FAILED TO BENCH TEST FILE".white().on_red(),
+                    vector_path.display(),
+                    "n/a"
+                );
+                println!("\t|> reason: {:#}", e);
+            }
         };
     }
 

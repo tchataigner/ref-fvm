@@ -135,7 +135,9 @@ pub fn bench_vector_file(
                 .map_err(|e| {
                     anyhow::anyhow!("run_variant failed (probably a test parsing bug): {}", e)
                 })?,
-            CheckStrength::NoChecks => VariantResult::Ok { id: variant.id.clone() },
+            CheckStrength::NoChecks => VariantResult::Ok {
+                id: variant.id.clone(),
+            },
         };
 
         if let VariantResult::Ok { .. } = testresult {
