@@ -173,7 +173,7 @@ pub fn run_variant(
     let id = variant.id.clone();
 
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs);
+    let machine = TestMachine::new_for_vector(v, variant, bs, false);
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
 
     // Apply all messages in the vector.

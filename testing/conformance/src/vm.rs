@@ -46,6 +46,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         v: &MessageVector,
         variant: &Variant,
         blockstore: MemoryBlockstore,
+        with_profiler: bool,
     ) -> TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         let network_version =
             NetworkVersion::try_from(variant.nv).expect("unrecognized network version");
@@ -63,6 +64,10 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         wasm_conf
             .cache_config_load_default()
             .expect("failed to load cache config");
+        if with_profiler {
+            wasm_conf = wasm_conf.profiler(wasmtime::ProfilingStrategy::JitDump)
+                .expect("failed to add profiler to testing machine").to_owned();
+        };
 
         let machine = DefaultMachine::new(
             Config {
