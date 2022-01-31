@@ -169,11 +169,12 @@ pub fn run_variant(
     v: &MessageVector,
     variant: &Variant,
     check_correctness: bool,
+    with_profiler: bool,
 ) -> anyhow::Result<VariantResult> {
     let id = variant.id.clone();
 
     // Construct the Machine.
-    let machine = TestMachine::new_for_vector(v, variant, bs, false);
+    let machine = TestMachine::new_for_vector(v, variant, bs, with_profiler);
     let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
 
     // Apply all messages in the vector.
