@@ -208,6 +208,9 @@ pub trait CryptoOps {
     /// Hashes input data using blake2b with 256 bit output.
     fn hash_blake2b(&mut self, data: &[u8]) -> Result<[u8; 32]>;
 
+    /// Hashes input data using sha256 with 256 bit output
+    fn hash_sha256(&mut self, data: &[u8]) -> Result<[u8; 32]>;
+
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
     fn compute_unsealed_sector_cid(
         &mut self,

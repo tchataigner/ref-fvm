@@ -59,6 +59,18 @@ pub fn hash_blake2b(
     context.kernel.hash_blake2b(data)
 }
 
+/// Hashes input data using sha256 with 256 bit output.
+///
+/// The output buffer must be sized to 32 bytes.
+pub fn hash_sha256(
+    mut context: Context<'_, impl Kernel>,
+    data_off: u32,
+    data_len: u32,
+) -> Result<[u8; 32]> {
+    let data = context.memory.try_slice(data_len, data_off)?;
+    context.kernel.hash_sha256(data)
+}
+
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
 /// (CommPs) and sizes.
 ///
