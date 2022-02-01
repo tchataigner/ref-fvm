@@ -24,7 +24,7 @@ use fvm_shared::sector::{
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 use num_traits::Zero;
-use wasmtime::Module;
+use wasmtime::{Module, WasmBacktraceDetails};
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -60,13 +60,16 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let externs = TestExterns::new(&v.randomness);
 
-        let mut wasm_conf = wasmtime::Config::default();
-        wasm_conf
-            .cache_config_load_default()
-            .expect("failed to load cache config");
-        if with_profiler {
-            wasm_conf = wasm_conf.profiler(wasmtime::ProfilingStrategy::JitDump)
-                .expect("failed to add profiler to testing machine").to_owned();
+        let wasm_conf= if with_profiler {
+            wasmtime::Config::default()
+                .cache_config_load_default()
+                .expect("failed to load cache config")
+                .profiler(wasmtime::ProfilingStrategy::JitDump)
+                .expect("failed to add profiler to testing machine").to_owned()
+        } else {
+            wasmtime::Config::default()
+                .cache_config_load_default()
+                .expect("failed to load cache config").to_owned()
         };
 
         let machine = DefaultMachine::new(
