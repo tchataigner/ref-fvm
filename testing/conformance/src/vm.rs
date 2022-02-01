@@ -60,16 +60,18 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let externs = TestExterns::new(&v.randomness);
 
-        let wasm_conf= if with_profiler {
+        let wasm_conf = if with_profiler {
             wasmtime::Config::default()
                 .cache_config_load_default()
                 .expect("failed to load cache config")
-                .profiler(wasmtime::ProfilingStrategy::JitDump)
-                .expect("failed to add profiler to testing machine").to_owned()
+                .profiler(wasmtime::ProfilingStrategy::VTune)
+                .expect("failed to add profiler to testing machine")
+                .to_owned()
         } else {
             wasmtime::Config::default()
                 .cache_config_load_default()
-                .expect("failed to load cache config").to_owned()
+                .expect("failed to load cache config")
+                .to_owned()
         };
 
         let machine = DefaultMachine::new(

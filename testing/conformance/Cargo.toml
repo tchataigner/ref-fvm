@@ -5,7 +5,7 @@ authors = ["ChainSafe Systems <info@chainsafe.io>"]
 edition = "2018"
 
 [features]
-default = []
+default = ["wasmtime/vtune"]
 
 [dependencies]
 anyhow = "1.0.47"
@@ -43,6 +43,7 @@ num_cpus = "1.13.1"
 walkdir = "2.3"
 regex = { version = "1.0" }
 serde_json = "1.0"
+ittapi-rs = "0.1.6"
 
 [dev-dependencies]
 flate2 = "1.0"
