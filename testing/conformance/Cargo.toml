@@ -55,6 +55,7 @@ criterion = { version = "0.3", features = ["async_std"] }
 name = "perf-conformance"
 test = false
 bench = false
+rustc-link-search = ["/root/ittapi/include"]
 
 [[bench]]
 name = "bench_conformance"
