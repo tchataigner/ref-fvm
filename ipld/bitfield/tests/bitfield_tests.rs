@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
-use forest_bitfield::{bitfield, BitField};
+use fvm_bitfield::{bitfield, BitField};
 use fvm_shared::encoding;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
