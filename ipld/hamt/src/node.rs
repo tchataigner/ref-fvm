@@ -71,6 +71,15 @@ impl<K, V, H> Default for Node<K, V, H> {
     }
 }
 
+/// Function stolen from the rust standard library to reduce monomorphization on different key types.
+fn equivalent<Q, K>(k: &Q) -> impl Fn(&K) -> bool + '_
+where
+    K: Borrow<Q>,
+    Q: ?Sized + Eq,
+{
+    move |x| k.eq(x.borrow())
+}
+
 impl<K, V, H> Node<K, V, H>
 where
     K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
@@ -127,7 +136,13 @@ where
         S: Blockstore,
     {
         let hash = H::hash(k);
-        self.rm_value(&mut HashBits::new(&hash), bit_width, 0, k, store)
+        self.rm_value(
+            &mut HashBits::new(&hash),
+            equivalent(k),
+            bit_width,
+            0,
+            store,
+        )
     }
 
     pub fn is_empty(&self) -> bool {
@@ -183,21 +198,23 @@ where
         Q: Eq + Hash,
     {
         let hash = H::hash(q);
-        self.get_value(&mut HashBits::new(&hash), bit_width, 0, q, store)
+        self.get_value(
+            &mut HashBits::new(&hash),
+            equivalent(q),
+            bit_width,
+            0,
+            store,
+        )
     }
 
-    fn get_value<Q: ?Sized, S: Blockstore>(
+    fn get_value<S: Blockstore>(
         &self,
         hashed_key: &mut HashBits,
+        mut eq_key: impl FnMut(&K) -> bool,
         bit_width: u32,
         depth: u64,
-        key: &Q,
         store: &S,
-    ) -> Result<Option<&KeyValuePair<K, V>>, Error>
-    where
-        K: Borrow<Q>,
-        Q: Eq + Hash,
-    {
+    ) -> Result<Option<&KeyValuePair<K, V>>, Error> {
         let idx = hashed_key.next(bit_width)?;
 
         if !self.bitfield.test_bit(idx) {
@@ -210,7 +227,7 @@ where
             Pointer::Link { cid, cache } => {
                 if let Some(cached_node) = cache.get() {
                     // Link node is cached
-                    cached_node.get_value(hashed_key, bit_width, depth + 1, key, store)
+                    cached_node.get_value(hashed_key, eq_key, bit_width, depth + 1, store)
                 } else {
                     let node: Box<Node<K, V, H>> = if let Some(node) = store.get_cbor(cid)? {
                         node
@@ -224,11 +241,11 @@ where
 
                     // Intentionally ignoring error, cache will always be the same.
                     let cache_node = cache.get_or_init(|| node);
-                    cache_node.get_value(hashed_key, bit_width, depth + 1, key, store)
+                    cache_node.get_value(hashed_key, eq_key, bit_width, depth + 1, store)
                 }
             }
-            Pointer::Dirty(n) => n.get_value(hashed_key, bit_width, depth + 1, key, store),
-            Pointer::Values(vals) => Ok(vals.iter().find(|kv| key.eq(kv.key().borrow()))),
+            Pointer::Dirty(n) => n.get_value(hashed_key, eq_key, bit_width, depth + 1, store),
+            Pointer::Values(vals) => Ok(vals.iter().find(|kv| eq_key(kv.key().borrow()))),
         }
     }
 
@@ -356,18 +373,14 @@ where
     }
 
     /// Internal method to delete entries.
-    fn rm_value<Q: ?Sized, S: Blockstore>(
+    fn rm_value<S: Blockstore>(
         &mut self,
         hashed_key: &mut HashBits,
+        mut eq_key: impl FnMut(&K) -> bool,
         bit_width: u32,
         depth: u64,
-        key: &Q,
         store: &S,
-    ) -> Result<Option<(K, V)>, Error>
-    where
-        K: Borrow<Q>,
-        Q: Hash + Eq,
-    {
+    ) -> Result<Option<(K, V)>, Error> {
         let idx = hashed_key.next(bit_width)?;
 
         // No existing values at this point.
@@ -387,7 +400,8 @@ where
                 })?;
                 let child_node = cache.get_mut().expect("filled line above");
 
-                let deleted = child_node.rm_value(hashed_key, bit_width, depth + 1, key, store)?;
+                let deleted =
+                    child_node.rm_value(hashed_key, eq_key, bit_width, depth + 1, store)?;
                 if deleted.is_some() {
                     *child = Pointer::Dirty(std::mem::take(child_node));
                 }
@@ -398,7 +412,7 @@ where
             }
             Pointer::Dirty(n) => {
                 // Delete value and return deleted value
-                let deleted = n.rm_value(hashed_key, bit_width, depth + 1, key, store)?;
+                let deleted = n.rm_value(hashed_key, eq_key, bit_width, depth + 1, store)?;
 
                 // Clean to ensure canonical form
                 child.clean()?;
@@ -407,7 +421,7 @@ where
             Pointer::Values(vals) => {
                 // Delete value
                 for (i, p) in vals.iter().enumerate() {
-                    if key.eq(p.key().borrow()) {
+                    if eq_key(p.key().borrow()) {
                         let old = if vals.len() == 1 {
                             if let Pointer::Values(new_v) = self.rm_child(cindex, idx) {
                                 new_v.into_iter().next().unwrap()
