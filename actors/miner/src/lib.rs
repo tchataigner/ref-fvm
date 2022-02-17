@@ -4515,6 +4515,7 @@ fn check_control_addresses(control_addrs: &[Address]) -> Result<(), ActorError> 
 fn check_valid_post_proof_type(proof_type: RegisteredPoStProof) -> Result<(), ActorError> {
     match proof_type {
         RegisteredPoStProof::StackedDRGWindow32GiBV1
+        | RegisteredPoStProof::StackedDRGWindow512MiBV1
         | RegisteredPoStProof::StackedDRGWindow64GiBV1 => Ok(()),
         _ => Err(actor_error!(
             ErrIllegalArgument,
