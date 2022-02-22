@@ -14,6 +14,7 @@ use fvm_shared::blockstore::{Blockstore, CborStore};
 use fvm_shared::commcid::{
     cid_to_data_commitment_v1, cid_to_replica_commitment_v1, data_commitment_v1_to_cid,
 };
+use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::encoding::{blake2b_256, bytes_32, to_vec, RawBytes};
 use fvm_shared::error::ErrorNumber;
@@ -33,6 +34,7 @@ use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::market_actor::State as MarketActorState;
 use crate::power_actor::State as PowerActorState;
+use crate::reward_actor::State as RewardActorState;
 use crate::state_tree::ActorState;
 use crate::syscall_error;
 
@@ -41,6 +43,7 @@ pub const RESERVE_ACTOR_ID: ActorID = 90;
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
+    static ref INITIAL_RESERVE_BALANCE: BigInt = BigInt::from(300_000_000) * FILECOIN_PRECISION;
 }
 
 /// Tracks data accessed and modified during the execution of a message.
@@ -101,13 +104,14 @@ impl<C> DefaultKernel<C>
 where
     C: CallManager,
 {
-    pub fn resolve_to_key_addr(&self, addr: &Address) -> Result<Address> {
+    fn resolve_to_key_addr(&mut self, addr: &Address, charge_gas: bool) -> Result<Address> {
         if addr.protocol() == Protocol::BLS || addr.protocol() == Protocol::Secp256k1 {
             return Ok(*addr);
         }
 
-        let state_tree = self.call_manager.state_tree();
-        let act = state_tree
+        let act = self
+            .call_manager
+            .state_tree()
             .get_actor(addr)?
             .ok_or(anyhow!("state tree doesn't contain actor"))
             .or_illegal_argument()?;
@@ -116,7 +120,14 @@ where
             return Err(syscall_error!(IllegalArgument; "target actor is not an account").into());
         }
 
-        let state: crate::account_actor::State = state_tree
+        if charge_gas {
+            self.call_manager
+                .charge_gas(self.call_manager.price_list().on_ipld_get())?;
+        }
+
+        let state: crate::account_actor::State = self
+            .call_manager
+            .state_tree()
             .store()
             .get_cbor(&act.state)
             .context("failed to decode actor state as an account")
@@ -132,34 +143,37 @@ where
             .call_manager
             .state_tree()
             .get_actor_id(BURN_ACTOR_ID)?
-            .ok_or_else(|| anyhow!("burn actor state couldn't be loaded"))
+            .context("burn actor state couldn't be loaded")
             .or_fatal()?
             .balance)
     }
 
     fn get_reserve_disbursed(&self) -> Result<TokenAmount> {
-        let initial_reserve_balance = BigInt::from(330_000_000) * FILECOIN_PRECISION;
-        initial_reserve_balance
-            .checked_sub(
-                &self
-                    .call_manager
-                    .state_tree()
-                    .get_actor_id(RESERVE_ACTOR_ID)?
-                    .ok_or_else(|| anyhow!("reserve actor state couldn't be loaded"))
-                    .or_fatal()?
-                    .balance,
-            )
-            .ok_or_else(|| anyhow!("failed to subtract"))
-            .or_fatal()
+        let reserve_balance = self
+            .call_manager
+            .state_tree()
+            .get_actor_id(RESERVE_ACTOR_ID)?
+            .context("failed to load reserve actor when determining reserve disbursed")
+            .or_fatal()?
+            .balance;
+        Ok(&*INITIAL_RESERVE_BALANCE - reserve_balance)
+    }
+
+    fn get_fil_mined(&self) -> Result<TokenAmount> {
+        let (reward_state, _) = RewardActorState::load(self.call_manager.state_tree())
+            .context("failed to load reward actor state when getting FIL mined")?;
+        Ok(reward_state.total_storage_power_reward())
     }
 
     fn power_locked(&self) -> Result<TokenAmount> {
-        let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())?;
+        let (power_state, _) = PowerActorState::load(self.call_manager.state_tree())
+            .context("failed to load power actor state when determining locked FIL")?;
         Ok(power_state.total_locked())
     }
 
     fn market_locked(&self) -> Result<TokenAmount> {
-        let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())?;
+        let (market_state, _) = MarketActorState::load(self.call_manager.state_tree())
+            .context("failed to load market actor state when determining locked FIL")?;
         Ok(market_state.total_locked())
     }
 
@@ -308,7 +322,7 @@ where
                 syscall_error!(IllegalArgument; "invalid hash length: {}", hash_len).into(),
             );
         }
-        let k = Cid::new_v1(block.codec, hash.truncate(hash_len as u8));
+        let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
         // TODO: for now, we _put_ the block here. In the future, we should put it into a write
         // cache, then flush it later.
         self.call_manager
@@ -319,7 +333,7 @@ where
     }
 
     fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<u32> {
-        let data = &self.blocks.get(id).or_illegal_argument()?.data;
+        let data = self.blocks.get(id).or_illegal_argument()?.data();
         Ok(if offset as usize >= data.len() {
             0
         } else {
@@ -377,23 +391,13 @@ where
     C: CallManager,
 {
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        self.call_manager
-            .context()
-            .base_circ_supply
-            .checked_add(&self.get_reserve_disbursed()?)
-            .ok_or(anyhow!(
-                "overflow when adding reserve to base circulating supply"
-            ))
-            .or_fatal()?
-            .checked_sub(&self.get_burnt_funds()?)
-            .ok_or(anyhow!("underflow when subtracting burnt funds"))
-            .or_fatal()?
-            .checked_sub(&self.power_locked()?)
-            .ok_or(anyhow!("underflow when subtracting power locked funds"))
-            .or_fatal()?
-            .checked_sub(&self.market_locked()?)
-            .ok_or(anyhow!("underflow when subtracting market locked funds"))
-            .or_fatal()
+        Ok((&self.call_manager.context().fil_vested
+            + &self.get_fil_mined()?
+            + &self.get_reserve_disbursed()?
+            - &self.get_burnt_funds()?
+            - &self.power_locked()?
+            - &self.market_locked()?)
+            .max(Zero::zero()))
     }
 }
 
@@ -414,7 +418,7 @@ where
         )?;
 
         // Resolve to key address before verifying signature.
-        let signing_addr = self.resolve_to_key_addr(signer)?;
+        let signing_addr = self.resolve_to_key_addr(signer, true)?;
         Ok(signature.verify(plaintext, &signing_addr).is_ok())
     }
 
@@ -531,11 +535,14 @@ where
 
         // This syscall cannot be resolved inside the FVM, so we need to traverse
         // the node boundary through an extern.
-        self.call_manager
+        let (fault, gas) = self
+            .call_manager
             .externs()
             .verify_consensus_fault(h1, h2, extra)
-            .or_illegal_argument()
-            .context("fault not verified")
+            .or_illegal_argument()?;
+        self.call_manager
+            .charge_gas(GasCharge::new("verify_consensus_fault_accesses", gas, 0))?;
+        Ok(fault)
     }
 
     fn batch_verify_seals(&mut self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
@@ -568,7 +575,7 @@ where
                                 false
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         log::error!("seal verify internal fail (miner: {}) (err: {:?})", seal.sector_id.miner, e);
                         false
@@ -736,7 +743,7 @@ where
 
     fn new_actor_address(&mut self) -> Result<Address> {
         let oa = self
-            .resolve_to_key_addr(&self.call_manager.origin())
+            .resolve_to_key_addr(&self.call_manager.origin(), false)
             // This is already an execution error, but we're _making_ it fatal.
             .or_fatal()?;
 

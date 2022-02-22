@@ -54,7 +54,7 @@ where
         engine: Engine,
         epoch: ChainEpoch,
         base_fee: TokenAmount,
-        base_circ_supply: TokenAmount,
+        fil_vested: TokenAmount,
         network_version: NetworkVersion,
         state_root: Cid,
         blockstore: B,
@@ -64,10 +64,15 @@ where
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
             epoch, &base_fee, network_version, state_root
         );
+
+        if network_version != NetworkVersion::V14 {
+            return Err(anyhow!("unsupported network version: {}", network_version));
+        }
+
         let context = MachineContext {
             epoch,
             base_fee,
-            base_circ_supply,
+            fil_vested,
             network_version,
             initial_state_root: state_root,
             price_list: price_list_by_epoch(epoch),
@@ -172,27 +177,27 @@ where
         // Otherwise, load it.
         use anyhow::Context;
         let binary = if code == &*crate::builtin::SYSTEM_ACTOR_CODE_ID {
-            fvm_actor_system::wasm::WASM_BINARY
+            fvm_actor_system::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::INIT_ACTOR_CODE_ID {
-            fvm_actor_init::wasm::WASM_BINARY
+            fvm_actor_init::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::CRON_ACTOR_CODE_ID {
-            fvm_actor_cron::wasm::WASM_BINARY
+            fvm_actor_cron::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::ACCOUNT_ACTOR_CODE_ID {
-            fvm_actor_account::wasm::WASM_BINARY
+            fvm_actor_account::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::POWER_ACTOR_CODE_ID {
-            fvm_actor_power::wasm::WASM_BINARY
+            fvm_actor_power::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::MINER_ACTOR_CODE_ID {
-            fvm_actor_miner::wasm::WASM_BINARY
+            fvm_actor_miner::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::MARKET_ACTOR_CODE_ID {
-            fvm_actor_market::wasm::WASM_BINARY
+            fvm_actor_market::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::PAYCH_ACTOR_CODE_ID {
-            fvm_actor_paych::wasm::WASM_BINARY
+            fvm_actor_paych::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::MULTISIG_ACTOR_CODE_ID {
-            fvm_actor_multisig::wasm::WASM_BINARY
+            fvm_actor_multisig::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::REWARD_ACTOR_CODE_ID {
-            fvm_actor_reward::wasm::WASM_BINARY
+            fvm_actor_reward::wasm::WASM_BINARY_BLOATY
         } else if code == &*crate::builtin::VERIFREG_ACTOR_CODE_ID {
-            fvm_actor_verifreg::wasm::WASM_BINARY
+            fvm_actor_verifreg::wasm::WASM_BINARY_BLOATY
         } else {
             None
         };

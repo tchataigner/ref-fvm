@@ -17,15 +17,17 @@ pub mod syscalls;
 
 // TODO Public only for conformance tests.
 //  Consider exporting only behind a feature.
-pub mod account_actor;
 pub mod builtin;
 pub mod gas;
-pub mod init_actor;
 pub mod state_tree;
 
 mod blockstore;
+
+mod account_actor;
+mod init_actor;
 mod market_actor;
 mod power_actor;
+mod reward_actor;
 
 #[derive(Clone)]
 pub struct Config {
@@ -66,6 +68,7 @@ mod test {
     struct DummyExterns;
 
     impl Externs for DummyExterns {}
+
     impl Rand for DummyExterns {
         fn get_chain_randomness(
             &self,
@@ -85,13 +88,14 @@ mod test {
             todo!()
         }
     }
+
     impl Consensus for DummyExterns {
         fn verify_consensus_fault(
             &self,
             _h1: &[u8],
             _h2: &[u8],
             _extra: &[u8],
-        ) -> anyhow::Result<Option<fvm_shared::consensus::ConsensusFault>> {
+        ) -> anyhow::Result<(Option<fvm_shared::consensus::ConsensusFault>, i64)> {
             todo!()
         }
     }
