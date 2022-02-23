@@ -14,3 +14,8 @@
 
 ## stare into abyss?
 `perf report --input perf.jit.data --hierarchy`
+
+# and with vwhatever and ittapi
+## build
+(build ittapi somewhere first)
+``
