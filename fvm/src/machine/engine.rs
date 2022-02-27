@@ -4,7 +4,6 @@ use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use cid::Cid;
-use wasmtime::{Linker, Module};
 
 use crate::syscalls::{bind_syscalls, InvocationData};
 use crate::Kernel;
@@ -15,13 +14,13 @@ pub struct Engine(Arc<EngineInner>);
 
 impl Default for Engine {
     fn default() -> Self {
-        Engine::new(&wasmtime::Config::default()).unwrap()
+        Engine::new(&wasmtime::Config::new().consume_fuel(true)).unwrap()
     }
 }
 
 struct EngineInner {
     engine: wasmtime::Engine,
-    module_cache: Mutex<HashMap<Cid, Module>>,
+    module_cache: Mutex<HashMap<Cid, wasmtime::Module>>,
     instance_cache: Mutex<anymap::Map<dyn anymap::any::Any + Send>>,
 }
 
@@ -117,8 +116,8 @@ impl Engine {
     }
 
     /// Load some wasm code into the engine.
-    pub fn load_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<Module> {
-        let module = Module::from_binary(&self.0.engine, wasm)?;
+    pub fn load_bytecode(&self, k: &Cid, wasm: &[u8]) -> anyhow::Result<wasmtime::Module> {
+        let module = wasmtime::Module::from_binary(&self.0.engine, wasm)?;
         self.0
             .module_cache
             .lock()
@@ -128,8 +127,12 @@ impl Engine {
     }
 
     /// Load compiled wasm code into the engine.
-    pub unsafe fn load_compiled(&self, k: &Cid, compiled: &[u8]) -> anyhow::Result<Module> {
-        let module = Module::deserialize(&self.0.engine, compiled)?;
+    pub unsafe fn load_compiled(
+        &self,
+        k: &Cid,
+        compiled: &[u8],
+    ) -> anyhow::Result<wasmtime::Module> {
+        let module = wasmtime::Module::deserialize(&self.0.engine, compiled)?;
         self.0
             .module_cache
             .lock()
@@ -139,7 +142,7 @@ impl Engine {
     }
 
     /// Lookup a loaded wasmtime module.
-    pub fn get_module(&self, k: &Cid) -> Option<Module> {
+    pub fn get_module(&self, k: &Cid) -> Option<wasmtime::Module> {
         self.0
             .module_cache
             .lock()
@@ -160,7 +163,7 @@ impl Engine {
         let cache = match instance_cache.entry() {
             anymap::Entry::Occupied(e) => e.into_mut(),
             anymap::Entry::Vacant(e) => e.insert({
-                let mut linker = Linker::new(&self.0.engine);
+                let mut linker = wasmtime::Linker::new(&self.0.engine);
                 bind_syscalls(&mut linker)?;
                 Cache {
                     linker,
