@@ -96,6 +96,7 @@ impl State {
     /// Takes in current realized power and updates internal state
     /// Used for update of internal state during null rounds
     pub(super) fn update_to_next_epoch(&mut self, curr_realized_power: &StoragePower) {
+        fvm_sdk::debug::log(format!("fvm inc epoch: {} -> {}", self.epoch, self.epoch+1));
         self.epoch += 1;
         self.this_epoch_baseline_power = baseline_power_from_prev(&self.this_epoch_baseline_power);
         let capped_realized_power =
