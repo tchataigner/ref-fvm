@@ -22,7 +22,7 @@ lazy_static! {
 }
 
 /// Reward actor state
-#[derive(Serialize_tuple, Deserialize_tuple, Default)]
+#[derive(Serialize_tuple, Deserialize_tuple, Default, Debug)]
 pub struct State {
     /// Target CumsumRealized needs to reach for EffectiveNetworkTime to increase
     /// Expressed in byte-epochs.
@@ -142,6 +142,7 @@ impl State {
             &DEFAULT_ALPHA,
             &DEFAULT_BETA,
         );
+        fvm_sdk::debug::log(format!("fvm before: {:#?}", self));
         self.this_epoch_reward_smoothed =
             filter_reward.next_estimate(&self.this_epoch_reward, delta);
         fvm_sdk::debug::log(format!("fvm this_epoch_reward_smoothed (upd): {:?}", &self.this_epoch_reward_smoothed));
