@@ -144,6 +144,7 @@ impl State {
         );
         self.this_epoch_reward_smoothed =
             filter_reward.next_estimate(&self.this_epoch_reward, delta);
+        fvm_sdk::debug::log(format!("fvm this_epoch_reward_smoothed (upd): {:?}", &self.this_epoch_reward_smoothed));
     }
 
     pub fn into_total_storage_power_reward(self) -> TokenAmount {
