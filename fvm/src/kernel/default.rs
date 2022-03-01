@@ -677,7 +677,6 @@ where
     C: CallManager,
 {
     fn network_epoch(&self) -> ChainEpoch {
-        eprintln!("Querying epoch from default kernel.");
         self.call_manager.context().epoch
     }
 
