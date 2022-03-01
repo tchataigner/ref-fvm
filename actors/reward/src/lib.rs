@@ -247,7 +247,6 @@ impl Actor {
             .ok_or_else(|| actor_error!(ErrIllegalArgument, "argument cannot be None"))?;
 
         rt.transaction(|st: &mut State, rt| {
-            //fvm_sdk::debug::log(format!("fvm update_network_kpi: {} {}", st.epoch, rt.curr_epoch()));
             let prev = st.epoch;
             // if there were null runs catch up the computation until
             // st.Epoch == rt.CurrEpoch()

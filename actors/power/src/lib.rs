@@ -299,7 +299,6 @@ impl Actor {
             )))
         })?;
 
-        // fvm_sdk::debug::log(format!("fvm UpdateNetworkKPI."));
         // Update network KPA in reward actor
         rt.send(
             *REWARD_ACTOR_ADDR,

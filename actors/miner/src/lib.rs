@@ -1325,11 +1325,7 @@ impl Actor {
 		    	// The sector's power will be recalculated when it's proven.
                 let duration = precommit.expiration - curr_epoch;
                 let sector_weight = qa_power_for_weight(info.sector_size, duration, &deal_weight.deal_weight, &deal_weight.verified_deal_weight);
-                // fvm_sdk::debug::log(format!("fvm sector_weight: {}", sector_weight));
-                // fvm_sdk::debug::log(format!("fvm this_epoch_reward_smoothed: {:?}", &reward_stats.this_epoch_reward_smoothed));
-                // fvm_sdk::debug::log(format!("fvm quality_adj_power_smoothed: {:?}", &power_total.quality_adj_power_smoothed));
                 let deposit_req = pre_commit_deposit_for_power(&reward_stats.this_epoch_reward_smoothed,&power_total.quality_adj_power_smoothed , &sector_weight);
-                // fvm_sdk::debug::log(format!("fvm deposit_req: {}", deposit_req));
                 // Build on-chain record.
                 chain_infos.push(SectorPreCommitOnChainInfo{
                     info: precommit.clone(),

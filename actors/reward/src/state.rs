@@ -96,7 +96,6 @@ impl State {
     /// Takes in current realized power and updates internal state
     /// Used for update of internal state during null rounds
     pub(super) fn update_to_next_epoch(&mut self, curr_realized_power: &StoragePower) {
-        // fvm_sdk::debug::log(format!("fvm inc epoch: {} -> {}", self.epoch, self.epoch+1));
         self.epoch += 1;
         self.this_epoch_baseline_power = baseline_power_from_prev(&self.this_epoch_baseline_power);
         let capped_realized_power =
@@ -143,10 +142,8 @@ impl State {
             &DEFAULT_ALPHA,
             &DEFAULT_BETA,
         );
-        // fvm_sdk::debug::log(format!("fvm before: {:#?}", self));
         self.this_epoch_reward_smoothed =
             filter_reward.next_estimate(&self.this_epoch_reward, delta);
-        // fvm_sdk::debug::log(format!("fvm this_epoch_reward_smoothed (upd): {:?}", &self.this_epoch_reward_smoothed));
     }
 
     pub fn into_total_storage_power_reward(self) -> TokenAmount {
