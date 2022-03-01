@@ -8,7 +8,6 @@ edition = "2018"
 repository = "https://github.com/filecoin-project/fvm"
 
 [dependencies]
-fvm_sdk = { path = "../../sdk" }
 actors-runtime = { path = "../runtime" }
 fvm_shared = { path = "../../shared", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
