@@ -101,10 +101,6 @@ where
             state_tree,
         })
     }
-
-    pub fn set_epoch(&mut self, new_epoch: ChainEpoch) {
-        self.context.epoch = new_epoch;
-    }
 }
 
 impl<B, E> Machine for DefaultMachine<B, E>
