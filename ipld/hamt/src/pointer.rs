@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::cmp::Ordering;
+use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
 use libipld_core::ipld::Ipld;
@@ -52,6 +53,32 @@ where
     }
 }
 
+impl<K, V, H> TryFrom<Ipld> for Pointer<K, V, H>
+where
+    K: DeserializeOwned,
+    V: DeserializeOwned,
+{
+    type Error = String;
+
+    fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
+        match ipld {
+            ipld_list @ Ipld::List(_) => {
+                let values: Vec<KeyValuePair<K, V>> =
+                    Deserialize::deserialize(ipld_list).map_err(|error| error.to_string())?;
+                Ok(Self::Values(values))
+            }
+            Ipld::Link(cid) => Ok(Self::Link {
+                cid,
+                cache: Default::default(),
+            }),
+            other => Err(format!(
+                "Expected `Ipld::List` or `Ipld::Link`, got {:#?}",
+                other
+            )),
+        }
+    }
+}
+
 /// Deserialize the Pointer like an untagged enum.
 impl<'de, K, V, H> Deserialize<'de> for Pointer<K, V, H>
 where
@@ -62,21 +89,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        Ipld::deserialize(deserializer).and_then(|ipld| match ipld {
-            ipld_list @ Ipld::List(_) => {
-                let values: Vec<KeyValuePair<K, V>> = Deserialize::deserialize(ipld_list)
-                    .map_err(|error| de::Error::custom(error.to_string()))?;
-                Ok(Self::Values(values))
-            }
-            Ipld::Link(cid) => Ok(Self::Link {
-                cid,
-                cache: Default::default(),
-            }),
-            other => Err(de::Error::custom(format!(
-                "Expected `Ipld::List` or `Ipld::Link`, got {:#?}",
-                other
-            ))),
-        })
+        Ipld::deserialize(deserializer).and_then(|ipld| ipld.try_into().map_err(de::Error::custom))
     }
 }
 
