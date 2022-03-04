@@ -10,6 +10,7 @@ use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::ActorID;
+use log::error;
 use num_traits::Zero;
 
 use super::{ApplyFailure, ApplyKind, ApplyRet, Executor};
@@ -88,6 +89,8 @@ where
             (Ok((result, gas_used, backtrace)), machine)
         })?;
 
+        error!("backtrace yes {:?}", backtrace);
+
         // Extract the exit code and build the result of the message application.
         let receipt = match res {
             Ok(InvocationResult::Return(return_data)) => {
@@ -124,7 +127,7 @@ where
                             "unexpected syscall error when processing message: {} ({})",
                             code,
                             code as u32
-                        ))
+                        ));
                     }
                 };
 
@@ -143,9 +146,10 @@ where
                     msg.sequence,
                     msg.method_num,
                     self.context().epoch
-                )))
+                )));
             }
         };
+        error!("res {:?}", receipt);
 
         let failure_info = if backtrace.is_empty() || receipt.exit_code.is_success() {
             None
@@ -236,7 +240,7 @@ where
                     ExitCode::SysErrSenderInvalid,
                     "Sender invalid",
                     miner_penalty_amount,
-                )))
+                )));
             }
         };
 
@@ -255,7 +259,7 @@ where
                     ExitCode::SysErrSenderInvalid,
                     "Sender invalid",
                     miner_penalty_amount,
-                )))
+                )));
             }
         };
 
