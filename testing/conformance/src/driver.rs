@@ -14,9 +14,9 @@ use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use lazy_static::lazy_static;
+use libipld_core::ipld::Ipld;
 use regex::Regex;
 use walkdir::DirEntry;
-use libipld_core::ipld::Ipld;
 
 use crate::vector::{MessageVector, Variant};
 use crate::vm::{TestKernel, TestMachine};
