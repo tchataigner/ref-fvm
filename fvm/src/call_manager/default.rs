@@ -14,6 +14,7 @@ use crate::gas::GasTracker;
 use crate::kernel::{ClassifyResult, ExecutionError, Kernel, Result};
 use crate::machine::Machine;
 use crate::syscalls::error::Abort;
+use crate::trace::ExecutionTrace;
 use crate::{account_actor, syscall_error};
 
 /// The DefaultCallManager manages a single call stack.
@@ -21,14 +22,13 @@ use crate::{account_actor, syscall_error};
 /// When a top-level message is executed:
 ///
 /// 1. The machine creates a call manager for that message, giving itself to the call manager.
-/// 2. The machine calls the call specified actor/method using the call manager.
+/// 2. The machine calls the specified actor/method using the call manager.
 /// 3. The call manager then executes the actual actor code.
 /// 4. If an actor calls another actor, the kernel will:
 ///    1. Detach the call manager from itself.
 ///    2. Call `send` on the call manager to execute the new message.
 ///    3. Re-attach the call manager.
 ///    4. Return.
-
 #[repr(transparent)]
 pub struct DefaultCallManager<M>(Option<InnerDefaultCallManager<M>>);
 
@@ -51,6 +51,8 @@ pub struct InnerDefaultCallManager<M> {
     call_stack_depth: u32,
     /// The current chain of errors, if any.
     backtrace: Backtrace,
+    /// The current execution trace.
+    exec_trace: Option<ExecutionTrace>,
 }
 
 #[doc(hidden)]
@@ -84,6 +86,7 @@ where
             num_actors_created: 0,
             call_stack_depth: 0,
             backtrace: Backtrace::default(),
+            exec_trace: None,
         }))
     }
 
@@ -98,6 +101,18 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
+        let trace = ExecutionTrace::new(
+            Address::new_id(from),
+            to,
+            method,
+            params.clone(),
+            value.clone(),
+        );
+        if self.exec_trace.is_none() {
+            self.exec_trace = Some(trace);
+        } else {
+            self.exec_trace.as_mut().unwrap().subcalls.push(trace);
+        }
         if self.call_stack_depth > self.machine.config().max_call_depth {
             return Err(
                 syscall_error!(LimitExceeded, "message execution exceeds call depth").into(),
@@ -122,12 +137,12 @@ where
         res
     }
 
-    fn finish(mut self) -> (i64, Backtrace, Self::Machine) {
+    fn finish(mut self) -> (i64, Backtrace, Option<ExecutionTrace>, Self::Machine) {
         let gas_used = self.gas_tracker.gas_used().max(0);
 
         let inner = self.0.take().expect("call manager is poisoned");
         // TODO: Having to check against zero here is fishy, but this is what lotus does.
-        (gas_used, inner.backtrace, inner.machine)
+        (gas_used, inner.backtrace, inner.exec_trace, inner.machine)
     }
 
     // Accessor methods so the trait can implement some common methods by default.

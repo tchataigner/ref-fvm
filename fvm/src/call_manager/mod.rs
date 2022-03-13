@@ -11,8 +11,12 @@ use crate::state_tree::StateTree;
 use crate::Kernel;
 
 pub mod backtrace;
+
 pub use backtrace::Backtrace;
+
 mod default;
+
+use crate::trace::ExecutionTrace;
 pub use default::DefaultCallManager;
 
 /// BlockID representing nil parameters or return data.
@@ -40,7 +44,14 @@ pub trait CallManager: 'static {
     ) -> Result<InvocationResult>;
 
     /// Finishes execution, returning the gas used and the machine.
-    fn finish(self) -> (i64, backtrace::Backtrace, Self::Machine);
+    fn finish(
+        self,
+    ) -> (
+        i64,
+        backtrace::Backtrace,
+        Option<ExecutionTrace>,
+        Self::Machine,
+    );
 
     /// Returns a reference to the machine.
     fn machine(&self) -> &Self::Machine;

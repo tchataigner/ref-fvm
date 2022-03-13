@@ -27,6 +27,7 @@ mod init_actor;
 mod market_actor;
 mod power_actor;
 mod reward_actor;
+pub mod trace;
 
 use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;

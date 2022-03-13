@@ -8,6 +8,7 @@ use fvm::gas::{GasTracker, PriceList};
 use fvm::kernel::*;
 use fvm::machine::{DefaultMachine, Engine, Machine, MachineContext};
 use fvm::state_tree::{ActorState, StateTree};
+use fvm::trace::ExecutionTrace;
 use fvm::{Config, DefaultKernel};
 use fvm_ipld_car::load_car;
 use fvm_shared::actor::builtin::Manifest;
@@ -225,7 +226,7 @@ where
         })
     }
 
-    fn finish(self) -> (i64, Backtrace, Self::Machine) {
+    fn finish(self) -> (i64, Backtrace, Option<ExecutionTrace>, Self::Machine) {
         self.0.finish()
     }
 

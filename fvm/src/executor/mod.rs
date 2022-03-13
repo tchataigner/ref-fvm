@@ -11,6 +11,7 @@ use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 
 use crate::call_manager::Backtrace;
+use crate::trace::ExecutionTrace;
 use crate::Kernel;
 
 pub trait Executor {
@@ -60,6 +61,8 @@ pub struct ApplyRet {
     pub miner_tip: BigInt,
     /// Additional failure information for debugging, if any.
     pub failure_info: Option<ApplyFailure>,
+    /// Execution trace information, for debugging.
+    pub exec_trace: Option<ExecutionTrace>,
 }
 
 impl ApplyRet {
@@ -78,6 +81,7 @@ impl ApplyRet {
             penalty: miner_penalty,
             failure_info: Some(ApplyFailure::PreValidation(message.into())),
             miner_tip: BigInt::zero(),
+            exec_trace: None,
         }
     }
 
