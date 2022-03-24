@@ -10,9 +10,6 @@ mod charge;
 mod outputs;
 mod price_list;
 
-#[cfg(feature = "tracing")]
-pub mod tracer;
-
 pub struct GasTracker {
     gas_available: i64,
     gas_used: i64,

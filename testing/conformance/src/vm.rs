@@ -228,16 +228,6 @@ where
         self.0.finish()
     }
 
-    #[cfg(feature = "tracing")]
-    fn record_trace(
-        &self,
-        context: fvm::gas::tracer::Context,
-        point: fvm::gas::tracer::Point,
-        consumption: fvm::gas::tracer::Consumption,
-    ) {
-        self.0.record_trace(context, point, consumption)
-    }
-
     fn machine(&self) -> &Self::Machine {
         self.0.machine()
     }
@@ -336,15 +326,6 @@ where
             ),
             data,
         )
-    }
-
-    #[cfg(feature = "tracing")]
-    fn record_trace(
-        &self,
-        point: fvm::gas::tracer::Point,
-        consumption: fvm::gas::tracer::Consumption,
-    ) {
-        self.0.record_trace(point, consumption)
     }
 }
 
